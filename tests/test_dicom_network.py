@@ -19,6 +19,9 @@ def available_port() -> int:
 
 
 def test_scp_accepts_c_echo_and_c_store(database, paths):
+    # Desde a Fase 2, só modalidades cadastradas (Calling AE + IP) enviam C-STORE.
+    with database.transaction() as connection:
+        connection.execute("INSERT INTO dicom_nodes(name, ae_title, host, port) VALUES ('SCU de teste', 'TEST_SCU', '127.0.0.1', 104)")
     ingestor = DicomIngestor(database, paths)
     port = available_port()
     scp = DicomScp(ingestor, "VOXEL_ROUTER_T", port)

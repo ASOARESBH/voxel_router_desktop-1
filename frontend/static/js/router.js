@@ -139,6 +139,7 @@
       const metrics = [['RECEBIDOS', queue.received], ['PENDENTES', queue.pending], ['ENVIANDO', queue.sending], ['ENVIADOS', queue.sent], ['ERROS', queue.errors], ['AGUARDANDO RETRY', queue.retry], ['NON-DICOM PENDENTES', nonDicomStats.pending || 0], ['NON-DICOM PROCESSANDO', nonDicomStats.processing || 0], ['NON-DICOM FALHOS', nonDicomStats.failed || 0]];
       $('#metric-cards').innerHTML = metrics.map(([name, value]) => `<article class="metric-card"><p>${name}</p><strong>${Number(value).toLocaleString('pt-BR')}</strong></article>`).join('');
       renderBacklog(health.queue);
+      $('#access-warning').hidden = health.dicom.enabled_modalities !== 0;
       $('#network-health').innerHTML = Object.entries(health.network).map(([name, value]) => `<div class="health-row"><span>${escapeHtml(name.replaceAll('_', ' ').toUpperCase())}</span><span class="${value !== 'OK' ? 'offline' : ''}">● ${escapeHtml(value)}</span></div>`).join('');
       const storage = health.storage;
       $('#storage-progress').style.width = `${storage.percent}%`;
@@ -202,9 +203,42 @@
     $('#dicom-copy').textContent = `AE Title: ${config.ae_title}\nIP: ${location.hostname}\nPorta: ${config.port}`;
   }
 
+  const attemptReasons = { UNKNOWN_NODE: 'Não cadastrada', ECHO_ONLY: 'Só C-ECHO', CALLED_AE: 'Called AE incorreto' };
+
   async function loadModalities() {
-    const rows = await api('/api/modalities');
-    $('#modalities-table').innerHTML = rows.length ? rows.map(row => `<tr><td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.ae_title)}</td><td>${escapeHtml(row.host)}:${row.port}</td><td>${escapeHtml(row.modality)}</td><td>${escapeHtml(row.location)}</td><td>${badge(row.enabled ? 'ONLINE' : 'PAUSED')}</td></tr>`).join('') : '<tr><td colspan="6" class="empty-cell">Nenhuma modalidade cadastrada.</td></tr>';
+    const [rows, access] = await Promise.all([api('/api/modalities'), api('/api/dicom/access')]);
+    state.modalities = rows;
+    $('#modalities-warning').hidden = access.nodes.enabled > 0;
+    $('#modalities-table').innerHTML = rows.length ? rows.map(row => `<tr><td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.ae_title)}</td><td>${escapeHtml(row.host)}</td><td>${escapeHtml(row.modality)}</td><td>${escapeHtml(row.location)}</td><td>${badge(row.enabled ? 'ONLINE' : 'PAUSED')}</td><td><div class="action-group"><button class="secondary" data-node-toggle="${row.id}">${row.enabled ? 'DESABILITAR' : 'HABILITAR'}</button><button class="secondary" data-node-delete="${row.id}">EXCLUIR</button></div></td></tr>`).join('') : '<tr><td colspan="7" class="empty-cell">Nenhuma modalidade cadastrada.</td></tr>';
+    const until = access.learning_mode_until;
+    $('#learning-status').textContent = until ? `LIGADO ATÉ ${formatUtc(until)}` : 'DESLIGADO';
+    $('#learning-status').className = `badge ${until ? 'warning' : 'neutral'}`;
+    $('#attempts-table').innerHTML = access.attempts.length ? access.attempts.map(row => `<tr><td>${escapeHtml(row.calling_ae)}</td><td>${escapeHtml(row.source_ip)}</td><td>${escapeHtml(row.called_ae)}</td><td>${escapeHtml(attemptReasons[row.reason] || row.reason)}</td><td>${row.attempt_count}</td><td>${escapeHtml(formatUtc(row.last_seen_at))}</td><td><div class="action-group"><button class="primary" data-attempt-register="${row.id}" data-ae="${escapeHtml(row.calling_ae)}" data-ip="${escapeHtml(row.source_ip)}">CADASTRAR</button><button class="secondary" data-attempt-discard="${row.id}">DESCARTAR</button></div></td></tr>`).join('') : `<tr><td colspan="7" class="empty-cell">${until ? 'Aguardando tentativas de envio. Peça para a modalidade enviar um exame de teste.' : 'Nenhuma tentativa registrada.'}</td></tr>`;
+  }
+
+  async function onModalitiesClick(event) {
+    const data = event.target.dataset;
+    try {
+      if (data.nodeToggle) {
+        const row = state.modalities.find(item => String(item.id) === data.nodeToggle);
+        const payload = { name: row.name, description: row.description, ae_title: row.ae_title, host: row.host, port: row.port, modality: row.modality, manufacturer: row.manufacturer, location: row.location, enabled: !row.enabled };
+        await api(`/api/modalities/${row.id}`, { method: 'PUT', body: JSON.stringify(payload) });
+      } else if (data.nodeDelete) {
+        if (!confirm('Excluir esta modalidade? Ela deixará de poder enviar exames.')) return;
+        await api(`/api/modalities/${data.nodeDelete}`, { method: 'DELETE' });
+      } else if (data.attemptDiscard) {
+        await api(`/api/dicom/attempts/${data.attemptDiscard}`, { method: 'DELETE' });
+      } else if (data.attemptRegister) {
+        openModal(`Cadastrar ${data.ae} (${data.ip})`, '<p>A modalidade passará a poder enviar exames a partir deste IP.</p><label>Nome<input name="name" required></label><label>Modalidade<input name="modality" placeholder="CT"></label><label>Localização<input name="location"></label>', async values => {
+          await api(`/api/dicom/attempts/${data.attemptRegister}/register`, { method: 'POST', body: JSON.stringify(values) });
+          await loadModalities();
+        });
+        return;
+      } else {
+        return;
+      }
+      await loadModalities();
+    } catch (error) { alert(error.message); }
   }
 
   async function loadDestinations() {
@@ -295,7 +329,11 @@
     $('#stop-scp').addEventListener('click', () => api('/api/dicom/stop', { method: 'POST' }).then(loadDicom).catch(error => alert(error.message)));
     $('#copy-dicom').addEventListener('click', async () => { await navigator.clipboard.writeText($('#dicom-copy').textContent); $('#copy-dicom').textContent = 'COPIADO'; setTimeout(() => $('#copy-dicom').textContent = 'COPIAR CONFIGURAÇÃO', 1200); });
     $('#queue-table').addEventListener('click', event => { const action = event.target.dataset.queueAction; if (!action) return; api(`/api/queue/${event.target.dataset.id}/${action}`, { method: 'POST' }).then(loadQueue).catch(error => alert(error.message)); });
-    $('#add-modality').addEventListener('click', () => openModal('Adicionar modalidade', '<label>Nome<input name="name" required></label><label>Descrição<input name="description"></label><label>AE Title<input name="ae_title" maxlength="16" required></label><label>IP / Host<input name="host" required></label><label>Porta<input name="port" type="number" value="104" min="1" max="65535" required></label><label>Modalidade<input name="modality" placeholder="CT"></label><label>Fabricante<input name="manufacturer"></label><label>Localização<input name="location"></label><label class="checkbox-label"><input name="enabled" type="checkbox" checked> Ativa</label>', async values => { values.port = Number(values.port); await api('/api/modalities', { method: 'POST', body: JSON.stringify(values) }); await loadModalities(); }));
+    $('#modalities-table').addEventListener('click', onModalitiesClick);
+    $('#attempts-table').addEventListener('click', onModalitiesClick);
+    $('#learning-enable').addEventListener('click', () => api('/api/dicom/learning', { method: 'POST', body: JSON.stringify({ hours: Number($('#learning-hours').value) }) }).then(loadModalities).catch(error => alert(error.message)));
+    $('#learning-disable').addEventListener('click', () => api('/api/dicom/learning', { method: 'DELETE' }).then(loadModalities).catch(error => alert(error.message)));
+    $('#add-modality').addEventListener('click',() => openModal('Adicionar modalidade', '<label>Nome<input name="name" required></label><label>Descrição<input name="description"></label><label>AE Title<input name="ae_title" maxlength="16" required></label><label>IP ou faixa CIDR<input name="host" placeholder="192.168.0.50 ou 192.168.0.0/24" required></label><label>Porta<input name="port" type="number" value="104" min="1" max="65535" required></label><label>Modalidade<input name="modality" placeholder="CT"></label><label>Fabricante<input name="manufacturer"></label><label>Localização<input name="location"></label><label class="checkbox-label"><input name="enabled" type="checkbox" checked> Ativa</label>', async values => { values.port = Number(values.port); await api('/api/modalities', { method: 'POST', body: JSON.stringify(values) }); await loadModalities(); }));
     $('#add-destination').addEventListener('click', () => openModal('Adicionar destino', '<label>Nome<input name="name" required></label><label>Tipo<select name="kind"><option>DICOM</option><option>DICOMWEB</option><option>CLOUD</option></select></label><label>AE Title (DICOM)<input name="ae_title" maxlength="16"></label><label>IP / Host (DICOM)<input name="host"></label><label>Porta (DICOM)<input name="port" type="number" value="104" min="1" max="65535"></label><label>Endpoint (HTTP/S)<input name="endpoint"></label><label>Prioridade<select name="priority"><option value="1">CRITICAL</option><option value="2">HIGH</option><option value="3" selected>NORMAL</option><option value="4">LOW</option></select></label><label class="checkbox-label"><input name="tls_enabled" type="checkbox"> TLS habilitado</label><label class="checkbox-label"><input name="enabled" type="checkbox" checked> Ativo</label>', async values => { values.port = values.port ? Number(values.port) : null; values.priority = Number(values.priority); await api('/api/destinations', { method: 'POST', body: JSON.stringify(values) }); await loadDestinations(); }));
     $('#settings-system').addEventListener('submit', event => { event.preventDefault(); const form = new FormData(event.target); api('/api/settings/system', { method: 'PATCH', body: JSON.stringify({ values: Object.fromEntries(form) }) }).then(() => alert('Configurações salvas.')).catch(error => alert(error.message)); });
     $('#settings-storage').addEventListener('submit', event => { event.preventDefault(); const form = new FormData(event.target); api('/api/settings/storage', { method: 'PATCH', body: JSON.stringify({ values: { retention_hours: Number(form.get('retention_hours')), auto_delete: form.get('auto_delete') === 'on' } }) }).then(() => alert('Política de retenção salva.')).catch(error => alert(error.message)); });

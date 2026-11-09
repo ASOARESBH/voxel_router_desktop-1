@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import platform
+import sqlite3
 from contextlib import asynccontextmanager
 from pathlib import Path, PureWindowsPath
 from typing import Any
@@ -17,6 +18,7 @@ from pydantic import BaseModel, Field, field_validator
 from app.auth.service import AccountLockedError, AuthenticationError, AuthenticationService
 from app.core.engine import RouterEngine
 from app.core.logging import get_logger
+from app.dicom.access import LEARNING_MAX_HOURS, normalize_ae_title, normalize_host_network
 from app.security.secrets import SecretStoreError, WindowsSecretStore
 
 LOGGER = get_logger(__name__)
@@ -53,6 +55,28 @@ class NodePayload(BaseModel):
     manufacturer: str | None = Field(default=None, max_length=128)
     location: str | None = Field(default=None, max_length=128)
     enabled: bool = True
+
+    @field_validator("ae_title")
+    @classmethod
+    def validate_ae_title(cls, value: str) -> str:
+        return normalize_ae_title(value)
+
+    @field_validator("host")
+    @classmethod
+    def validate_host(cls, value: str) -> str:
+        # O SCP só conhece o IP de origem: o cadastro precisa ser IP ou faixa CIDR.
+        return normalize_host_network(value)
+
+
+class LearningModePayload(BaseModel):
+    hours: int = Field(ge=1, le=LEARNING_MAX_HOURS)
+
+
+class RegisterAttemptPayload(BaseModel):
+    name: str = Field(min_length=2, max_length=128)
+    modality: str | None = Field(default=None, max_length=16)
+    location: str | None = Field(default=None, max_length=128)
+    port: int = Field(default=104, ge=1, le=65535)
 
 
 class DestinationPayload(BaseModel):
@@ -368,33 +392,88 @@ def create_app(engine: RouterEngine | None = None, start_engine: bool = False) -
     async def list_modalities(_: dict[str, Any] = Depends(configured_user)) -> list[dict[str, Any]]:
         return [dict(row) for row in database.query_all("SELECT * FROM dicom_nodes ORDER BY name")]
 
-    @app.post("/api/modalities", status_code=status.HTTP_201_CREATED)
-    async def create_modality(payload: NodePayload, request: Request, user: dict[str, Any] = Depends(configured_user)) -> dict[str, int]:
+    def node_audit(row: Any) -> str:
+        """Resumo do que controla o acesso (AE, IP/CIDR, habilitada) para a trilha de auditoria."""
+        return f"ae={row['ae_title']};host={row['host']};enabled={int(bool(row['enabled']))}"
+
+    def insert_node(fields: dict[str, Any]) -> int:
         try:
             with database.transaction() as connection:
-                cursor = connection.execute("INSERT INTO dicom_nodes(name, description, ae_title, host, port, modality, manufacturer, location, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", tuple(payload.model_dump().values()))
-                node_id = int(cursor.lastrowid)
-            auth.audit(int(user["id"]), "CREATE_MODALITY", "DICOM_NODE", str(node_id), client_ip(request), "SUCCESS")
-            return {"id": node_id}
-        except Exception as exc:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Não foi possível salvar a modalidade") from exc
+                cursor = connection.execute(
+                    "INSERT INTO dicom_nodes(name, description, ae_title, host, port, modality, manufacturer, location, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (fields["name"], fields.get("description"), fields["ae_title"], fields["host"], fields["port"], fields.get("modality"), fields.get("manufacturer"), fields.get("location"), int(bool(fields.get("enabled", True)))),
+                )
+                return int(cursor.lastrowid)
+        except sqlite3.IntegrityError as exc:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Já existe uma modalidade com esse nome") from exc
+
+    @app.post("/api/modalities", status_code=status.HTTP_201_CREATED)
+    async def create_modality(payload: NodePayload, request: Request, user: dict[str, Any] = Depends(configured_user)) -> dict[str, int]:
+        fields = payload.model_dump()
+        node_id = insert_node(fields)
+        auth.audit(int(user["id"]), "CREATE_MODALITY", "DICOM_NODE", str(node_id), client_ip(request), "SUCCESS", node_audit(fields))
+        return {"id": node_id}
 
     @app.put("/api/modalities/{node_id}", status_code=status.HTTP_204_NO_CONTENT)
     async def update_modality(node_id: int, payload: NodePayload, request: Request, user: dict[str, Any] = Depends(configured_user)) -> None:
         fields = payload.model_dump()
-        with database.transaction() as connection:
-            cursor = connection.execute("UPDATE dicom_nodes SET name=?, description=?, ae_title=?, host=?, port=?, modality=?, manufacturer=?, location=?, enabled=?, updated_at=CURRENT_TIMESTAMP WHERE id=?", (*fields.values(), node_id))
-            if cursor.rowcount != 1:
-                raise HTTPException(status.HTTP_404_NOT_FOUND, "Modalidade não encontrada")
-        auth.audit(int(user["id"]), "UPDATE_MODALITY", "DICOM_NODE", str(node_id), client_ip(request), "SUCCESS")
+        try:
+            with database.transaction() as connection:
+                before = connection.execute("SELECT ae_title, host, enabled FROM dicom_nodes WHERE id = ?", (node_id,)).fetchone()
+                if before is None:
+                    raise HTTPException(status.HTTP_404_NOT_FOUND, "Modalidade não encontrada")
+                connection.execute("UPDATE dicom_nodes SET name=?, description=?, ae_title=?, host=?, port=?, modality=?, manufacturer=?, location=?, enabled=?, updated_at=CURRENT_TIMESTAMP WHERE id=?", (*fields.values(), node_id))
+        except sqlite3.IntegrityError as exc:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Já existe uma modalidade com esse nome") from exc
+        auth.audit(int(user["id"]), "UPDATE_MODALITY", "DICOM_NODE", str(node_id), client_ip(request), "SUCCESS", f"antes:{node_audit(before)} depois:{node_audit(fields)}")
 
     @app.delete("/api/modalities/{node_id}", status_code=status.HTTP_204_NO_CONTENT)
     async def delete_modality(node_id: int, request: Request, user: dict[str, Any] = Depends(configured_user)) -> None:
         with database.transaction() as connection:
-            cursor = connection.execute("DELETE FROM dicom_nodes WHERE id = ?", (node_id,))
-            if cursor.rowcount != 1:
+            before = connection.execute("SELECT ae_title, host, enabled FROM dicom_nodes WHERE id = ?", (node_id,)).fetchone()
+            if before is None:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, "Modalidade não encontrada")
-        auth.audit(int(user["id"]), "DELETE_MODALITY", "DICOM_NODE", str(node_id), client_ip(request), "SUCCESS")
+            connection.execute("DELETE FROM dicom_nodes WHERE id = ?", (node_id,))
+        auth.audit(int(user["id"]), "DELETE_MODALITY", "DICOM_NODE", str(node_id), client_ip(request), "SUCCESS", node_audit(before))
+
+    @app.get("/api/dicom/access")
+    async def dicom_access(_: dict[str, Any] = Depends(configured_user)) -> dict[str, Any]:
+        access = current_engine.scp.access
+        return {"nodes": access.node_counts(), "learning_mode_until": access.learning_until(), "learning_max_hours": LEARNING_MAX_HOURS, "attempts": access.list_attempts()}
+
+    @app.post("/api/dicom/learning")
+    async def enable_learning(payload: LearningModePayload, request: Request, user: dict[str, Any] = Depends(configured_user)) -> dict[str, str]:
+        until = current_engine.scp.access.enable_learning(payload.hours)
+        auth.audit(int(user["id"]), "ENABLE_DICOM_LEARNING", "DICOM", None, client_ip(request), "SUCCESS", f"hours={payload.hours};until={until}")
+        return {"learning_mode_until": until}
+
+    @app.delete("/api/dicom/learning", status_code=status.HTTP_204_NO_CONTENT)
+    async def disable_learning(request: Request, user: dict[str, Any] = Depends(configured_user)) -> None:
+        current_engine.scp.access.disable_learning()
+        auth.audit(int(user["id"]), "DISABLE_DICOM_LEARNING", "DICOM", None, client_ip(request), "SUCCESS")
+
+    @app.post("/api/dicom/attempts/{attempt_id}/register", status_code=status.HTTP_201_CREATED)
+    async def register_attempt(attempt_id: int, payload: RegisterAttemptPayload, request: Request, user: dict[str, Any] = Depends(configured_user)) -> dict[str, int]:
+        """Cadastro com um clique a partir de uma tentativa registrada; é sempre ação explícita do operador."""
+        attempt = database.query_one("SELECT calling_ae, source_ip FROM dicom_access_attempts WHERE id = ?", (attempt_id,))
+        if attempt is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Tentativa não encontrada")
+        try:
+            fields = {**payload.model_dump(), "ae_title": normalize_ae_title(attempt["calling_ae"]), "host": normalize_host_network(attempt["source_ip"]), "enabled": True}
+        except ValueError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+        node_id = insert_node(fields)
+        with database.transaction() as connection:
+            connection.execute("DELETE FROM dicom_access_attempts WHERE calling_ae = ? AND source_ip = ?", (attempt["calling_ae"], attempt["source_ip"]))
+        auth.audit(int(user["id"]), "CREATE_MODALITY", "DICOM_NODE", str(node_id), client_ip(request), "SUCCESS", f"origem=aprendizado;{node_audit(fields)}")
+        return {"id": node_id}
+
+    @app.delete("/api/dicom/attempts/{attempt_id}", status_code=status.HTTP_204_NO_CONTENT)
+    async def discard_attempt(attempt_id: int, request: Request, user: dict[str, Any] = Depends(configured_user)) -> None:
+        with database.transaction() as connection:
+            if connection.execute("DELETE FROM dicom_access_attempts WHERE id = ?", (attempt_id,)).rowcount != 1:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Tentativa não encontrada")
+        auth.audit(int(user["id"]), "DISCARD_DICOM_ATTEMPT", "DICOM", str(attempt_id), client_ip(request), "SUCCESS")
 
     @app.get("/api/destinations")
     async def list_destinations(_: dict[str, Any] = Depends(configured_user)) -> list[dict[str, Any]]:

@@ -39,13 +39,20 @@ class HealthMonitor:
                 "http_port": int(self.settings.get("orthanc", "http_port", default=8042)),
             },
             "cloud": {"status": cloud_status},
-            "dicom": {"status": "ONLINE" if self.scp.running else "OFFLINE", "ae_title": self.scp.ae_title, "port": self.scp.port},
+            "dicom": {"status": "ONLINE" if self.scp.running else "OFFLINE", "ae_title": self.scp.ae_title, "port": self.scp.port, **self.dicom_access()},
             "storage": storage,
             # Atraso de envio: pendência mais antiga, alerta configurável e último envio confirmado.
             "queue": self.queue.backlog_status() if self.queue is not None else None,
             "non_dicom": self.non_dicom.status() if self.non_dicom is not None else {"service": "OFFLINE", "directory": "ERROR", "processor": "STOPPED", "voxel_pacs": "DISCONNECTED", "stats": {}},
             "network": await self.network(),
         }
+
+    def dicom_access(self) -> dict[str, Any]:
+        """Sem modalidade habilitada, todo C-STORE é recusado: o dashboard precisa deixar isso explícito."""
+        access = getattr(self.scp, "access", None)
+        if access is None:
+            return {}
+        return {"enabled_modalities": access.node_counts()["enabled"], "learning_mode_until": access.learning_until()}
 
     async def network(self) -> dict[str, str]:
         dns = "OK"

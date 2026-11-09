@@ -8,7 +8,7 @@ from typing import Any, Iterator
 
 from app.config.settings import AppPaths
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 SCHEMA = """
 PRAGMA foreign_keys = ON;
@@ -261,7 +261,21 @@ CREATE INDEX IF NOT EXISTS idx_philips_pull_deliveries_status ON philips_pull_de
 
 INSERT OR IGNORE INTO schema_migrations(version) VALUES (1);
 INSERT OR IGNORE INTO schema_migrations(version) VALUES (2);
+-- v4: tentativas de associação desconhecidas, registradas só no modo aprendizado.
+CREATE TABLE IF NOT EXISTS dicom_access_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    calling_ae TEXT NOT NULL,
+    called_ae TEXT NOT NULL,
+    source_ip TEXT NOT NULL,
+    reason TEXT NOT NULL CHECK(reason IN ('UNKNOWN_NODE','CALLED_AE','ECHO_ONLY')),
+    attempt_count INTEGER NOT NULL DEFAULT 1,
+    first_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(calling_ae, called_ae, source_ip, reason)
+);
+
 INSERT OR IGNORE INTO schema_migrations(version) VALUES (3);
+INSERT OR IGNORE INTO schema_migrations(version) VALUES (4);
 """
 
 
