@@ -47,7 +47,8 @@ class DicomScp:
 
     @property
     def running(self) -> bool:
-        return self._server is not None and bool(getattr(self._server, "is_alive", lambda: False)())
+        # O servidor do pynetdicom é um socketserver (sem is_alive): existe enquanto não for parado.
+        return self._server is not None
 
     def start(self) -> None:
         with self._lock:
