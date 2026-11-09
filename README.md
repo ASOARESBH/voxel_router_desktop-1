@@ -14,7 +14,7 @@ O repositório começou vazio. Esta entrega estabelece o MVP de código-fonte, c
 | DICOM | SCP com **C-ECHO** e **C-STORE**, validação de UIDs, checksum SHA-256, deduplicação por SOP Instance UID, modalidades derivadas das séries e SCU C-STORE para destino |
 | Persistência | SQLite em WAL/FULL, transações `IMMEDIATE`, estado de estudo/instância/série, fila, tentativas, transferências, erros, auditoria e eventos |
 | Resiliência | Fila persistente, recuperação de itens `SENDING` após reinício, janela de completude de estudo, retry sem limite para falhas de conectividade (backoff até 15 min) e ERROR só para rejeição definitiva, retenção apenas de estudos validados |
-| Orthanc | Processo `Orthanc.exe` separado, REST de saúde real, DICOM `4243`, configuração persistente e host de serviço próprio instalado automaticamente |
+| Orthanc | Processo `Orthanc.exe` separado, REST de saúde real só em `127.0.0.1:8042`, servidor DICOM desligado, configuração persistente e host de serviço próprio instalado automaticamente |
 | Interface | Login, provisionamento inicial, dashboard de saúde/fila/storage, estudos, fila, SCP DICOM, modalidades, destinos, logs, auditoria e configurações |
 | Windows | Instalador único para Router + Orthanc, serviços `VOXELRouter`/`VOXELOrthanc`, diagnóstico final, diretórios persistentes e firewall DICOM privado |
 
@@ -90,7 +90,7 @@ Abra [http://127.0.0.1:8765](http://127.0.0.1:8765). Sem administrador provision
 
 O pacote **Orthanc homologado pela VOXEL** deve estar em `vendor/orthanc/` somente na estação de build. Ele é incluído automaticamente no `VOXEL_ROUTER_SETUP.exe`; o cliente não instala nem configura o Orthanc manualmente. Durante a primeira instalação, o instalador gera `orthanc.json` em `C:\ProgramData\VOXEL\Router\config`, cria o storage e o índice persistentes, registra o serviço **VOXEL Orthanc** e valida a REST em `127.0.0.1:8042` antes de iniciar o Router.
 
-O arquivo gerado restringe a REST ao host local, habilita autenticação do usuário interno do Router, aplica `DicomCheckCalledAet`, usa DICOM `4243` e não contém senha pré-fixada. O binário exato, plugins, licenças, certificados DICOM TLS e política de versões continuam sujeitos à homologação clínica.
+O arquivo gerado desliga o servidor DICOM do Orthanc (`DicomServerEnabled: false`; o Router grava e consulta só pela REST), prende a REST em `127.0.0.1` (`HttpBindAddresses` e `RemoteAccessAllowed: false`) e exige autenticação do usuário interno do Router. A senha é aleatória por instalação, fica no cofre DPAPI e nunca é fixa. O instalador regenera o arquivo também em atualizações e reinicia o Orthanc. O binário exato, plugins, licenças, certificados DICOM TLS e política de versões continuam sujeitos à homologação clínica.
 
 ## Build e instalação Windows
 
@@ -100,7 +100,7 @@ Em uma máquina de build Windows x64 com Python 3.12, Inno Setup 6, Orthanc homo
 powershell -ExecutionPolicy Bypass -File .\scripts\build_windows.ps1
 ```
 
-O resultado esperado é `dist\VOXEL_ROUTER_SETUP.exe`. A instalação provisiona separadamente `VOXELRouter.exe`, `VOXELRouterService.exe`, `VOXELOrthancService.exe` e `orthanc\Orthanc.exe` em `C:\Program Files\VOXEL\Router`; dados de Router, fila, logs, configuração, storage e índice Orthanc ficam em `C:\ProgramData\VOXEL\Router`. O diagnóstico final só conclui após validar serviços, portas `4242`, `4243`, `8042` e `8765`, além dos endpoints reais de Router e Orthanc. Para implantação sem interface:
+O resultado esperado é `dist\VOXEL_ROUTER_SETUP.exe`. A instalação provisiona separadamente `VOXELRouter.exe`, `VOXELRouterService.exe`, `VOXELOrthancService.exe` e `orthanc\Orthanc.exe` em `C:\Program Files\VOXEL\Router`; dados de Router, fila, logs, configuração, storage e índice Orthanc ficam em `C:\ProgramData\VOXEL\Router`. O diagnóstico final só conclui após validar serviços, portas `4242`, `8042` e `8765`, além dos endpoints reais de Router e Orthanc. Para implantação sem interface:
 
 ```text
 VOXEL_ROUTER_SETUP.exe /S
@@ -120,6 +120,7 @@ A atualização e a desinstalação normal preservam `config`, `queue`, `logs`, 
 - **Só destinos DICOM (C-STORE)** podem ser criados ou editados. Registros antigos DICOMWEB/CLOUD continuam listados como "não suportado" e só podem ser excluídos.
 - Itens da fila já enviados, validados ou cancelados não podem ser pausados nem retomados (retomar reenviaria o estudo).
 - `dicom.bind_host` define onde o SCP escuta: `0.0.0.0` (padrão, todas as interfaces) ou um IPv4 local. Testes e demonstrações usam `127.0.0.1`. A página *DICOM local* mostra os IPv4 da LAN (sem loopback, APIPA nem adaptadores VPN/virtuais), nunca `0.0.0.0`.
+- **Orthanc sem DICOM e firewall só na 4242.** O servidor DICOM do Orthanc (antiga `4243/TCP`) foi desligado e a regra de firewall correspondente é removida, inclusive em atualizações. A única regra de entrada é `4242/TCP` nos perfis Domínio e Privada (nunca Pública). O diagnóstico avisa quando a rede da clínica está como Pública.
 - O card **VOXEL CLOUD** fica verde só com destino DICOM habilitado, C-ECHO válido e sucesso (C-ECHO ou envio) nas últimas 24 h sem falha posterior; mostra a data do último sucesso. Ainda não há verificação ativa.
 
 ## Testes e cenários validados

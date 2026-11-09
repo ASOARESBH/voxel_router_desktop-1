@@ -14,7 +14,7 @@ guarda no Orthanc local e encaminha para a célula dedicada do VOXEL PACS por t�
 |---|---|---|
 | Router SCP (C-ECHO/C-STORE) | `0.0.0.0:4242/TCP` | `app/dicom/scp.py`, `app/dicom/ingest.py` |
 | Orthanc local (gravação via REST) | `127.0.0.1:8042` | `app/orthanc/client.py`, `app/orthanc/configuration.py` |
-| Orthanc DICOM | `4243/TCP` (revisão prevista na Fase 4) | `app/orthanc/configuration.py` |
+| Orthanc DICOM | desligado (`DicomServerEnabled: false`); REST só em loopback com autenticação | `app/orthanc/configuration.py` |
 | Fila persistente SQLite | `ProgramData\VOXEL\Router` | `app/queue/manager.py`, `app/core/database.py` |
 | Envio C-STORE (SCU) | destino/célula VOXEL | `app/transfer/manager.py`, `app/cloud/connectors.py` |
 | UI/API administrativa | `127.0.0.1:8765` | `app/api/server.py`, `frontend/` |

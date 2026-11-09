@@ -15,7 +15,7 @@ O VOXEL Router Desktop é um *DICOM Edge Router*. Ele recebe objetos DICOM por C
 | Router API e Engine | API FastAPI local, autenticação, SCP, fila, transmissão, retenção e *health checks* | Serviço **VOXEL Router** (`VOXELRouterService.exe`) |
 | Router launcher | Processo de diagnóstico e desenvolvimento local | `VOXELRouter.exe` |
 | DICOM SCP | C-ECHO/C-STORE local, checksum, deduplicação e descoberta de estudos | Processo do serviço Router, `4242/TCP` |
-| Orthanc local | Armazenamento temporário DICOM, consulta e REST API | Serviço **VOXEL Orthanc** (`VOXELOrthancService.exe` → `Orthanc.exe`), `4243/TCP` e `127.0.0.1:8042` |
+| Orthanc local | Armazenamento temporário DICOM, consulta e REST API | Serviço **VOXEL Orthanc** (`VOXELOrthancService.exe` → `Orthanc.exe`), REST `127.0.0.1:8042` com autenticação; servidor DICOM desligado |
 | SQLite | Estado administrativo, auditoria, sessões, fila e metadados | Arquivo em `ProgramData` |
 
 ## Fluxo de dados
@@ -64,7 +64,7 @@ A ordem de instalação/inicialização é: preparar storage e configuração pe
 
 ## Implantação Windows
 
-O artefato único `VOXEL_ROUTER_SETUP.exe` provisiona os binários independentes Router e Orthanc, gera `orthanc.json` no destino, registra serviços Windows separados, cria regras mínimas de firewall para `4242/TCP` e `4243/TCP`, executa diagnóstico de portas/health e oferece atalhos. Dados operacionais são mantidos em `C:\ProgramData\VOXEL\Router`; binários em `C:\Program Files\VOXEL\Router`. O instalador Inno Setup oferece modo silencioso `/S` e a desinstalação preserva dados salvo consentimento explícito.
+O artefato único `VOXEL_ROUTER_SETUP.exe` provisiona os binários independentes Router e Orthanc, gera `orthanc.json` no destino, registra serviços Windows separados, cria uma única regra de entrada, `4242/TCP` nos perfis Domínio e Privada (remove a regra legada da `4243/TCP`), executa diagnóstico de portas/health e oferece atalhos. Dados operacionais são mantidos em `C:\ProgramData\VOXEL\Router`; binários em `C:\Program Files\VOXEL\Router`. O instalador Inno Setup oferece modo silencioso `/S` e a desinstalação preserva dados salvo consentimento explícito.
 
 ## Impacto, risco e rollback
 

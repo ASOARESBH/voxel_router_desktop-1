@@ -1,9 +1,13 @@
-"""Endereços IPv4 da rede local, para o operador configurar as modalidades."""
+"""Rede local da máquina: IPv4 da LAN (para as modalidades) e perfil de rede do Windows (firewall)."""
 
 from __future__ import annotations
 
 import ipaddress
+import os
 import socket
+import subprocess
+from collections.abc import Callable
+from pathlib import Path
 
 import psutil
 
@@ -54,3 +58,34 @@ def local_ipv4_addresses() -> list[str]:
                 continue
             found.add(ip)
     return [str(ip) for ip in sorted(found)]
+
+
+# Perfil de rede do Windows: a regra de firewall da 4242 vale só em Domínio/Privada, nunca em Pública.
+POWERSHELL = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+PROFILE_COMMAND = "Get-NetConnectionProfile | ForEach-Object { $_.InterfaceAlias + '|' + $_.NetworkCategory }"
+PROFILE_TIMEOUT_SECONDS = 15
+
+
+def _run_powershell(command: str) -> str:
+    completed = subprocess.run(
+        [str(POWERSHELL), "-NoProfile", "-NonInteractive", "-Command", command],
+        capture_output=True,
+        text=True,
+        timeout=PROFILE_TIMEOUT_SECONDS,
+        check=True,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+    return completed.stdout
+
+
+def network_profiles(runner: Callable[[str], str] = _run_powershell) -> dict[str, str]:
+    """Categoria (Public, Private, DomainAuthenticated) por adaptador físico; ignora VPN/virtuais.
+
+    O túnel WireGuard costuma ficar como Pública, o que é esperado: o Router só faz conexões de saída por ele.
+    """
+    profiles: dict[str, str] = {}
+    for line in runner(PROFILE_COMMAND).splitlines():
+        alias, _, category = line.strip().rpartition("|")
+        if alias and category and not is_virtual_adapter(alias):
+            profiles[alias] = category
+    return profiles

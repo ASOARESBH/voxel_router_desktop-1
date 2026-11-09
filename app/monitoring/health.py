@@ -37,7 +37,6 @@ class HealthMonitor:
             "orthanc": {
                 "status": orthanc.status,
                 "detail": orthanc.detail,
-                "dicom_port": int(self.settings.get("orthanc", "dicom_port", default=4243)),
                 "http_port": int(self.settings.get("orthanc", "http_port", default=8042)),
             },
             "cloud": self.cloud(),
