@@ -17,6 +17,8 @@ LEARNING_MAX_HOURS = 24
 MIN_IPV4_PREFIX = 16
 MIN_IPV6_PREFIX = 64
 AE_TITLE_MAX_LENGTH = 16
+# "Últimas recusas": agregadas por (AE, IP, Called AE, motivo); só as mais recentes são mantidas.
+MAX_RECORDED_ATTEMPTS = 50
 _TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
@@ -112,8 +114,12 @@ class DicomAccessControl:
         LOGGER.info("dicom_learning_mode_disabled")
 
     def record_attempt(self, calling_ae: str, called_ae: str, source_ip: str, reason: str) -> bool:
-        """Registra tentativa desconhecida apenas com o modo aprendizado ativo. Nunca libera envio."""
-        if not self.learning_active():
+        """Registra a tentativa de forma agregada. Nunca libera envio.
+
+        Recusas (UNKNOWN_NODE, CALLED_AE) são sempre registradas; C-ECHO de origem desconhecida
+        (ECHO_ONLY, que é aceito) só com o modo aprendizado ativo. Mantém só as últimas 50.
+        """
+        if reason == "ECHO_ONLY" and not self.learning_active():
             return False
         with self.database.transaction() as connection:
             connection.execute(
@@ -122,8 +128,13 @@ class DicomAccessControl:
                    DO UPDATE SET attempt_count = attempt_count + 1, last_seen_at = CURRENT_TIMESTAMP""",
                 (str(calling_ae).strip()[:64], str(called_ae).strip()[:64], str(source_ip)[:64], reason),
             )
+            connection.execute(
+                """DELETE FROM dicom_access_attempts WHERE id NOT IN (
+                       SELECT id FROM dicom_access_attempts ORDER BY last_seen_at DESC, id DESC LIMIT ?)""",
+                (MAX_RECORDED_ATTEMPTS,),
+            )
         return True
 
     def list_attempts(self) -> list[dict[str, Any]]:
-        rows = self.database.query_all("SELECT * FROM dicom_access_attempts ORDER BY last_seen_at DESC, id DESC LIMIT 200")
+        rows = self.database.query_all("SELECT * FROM dicom_access_attempts ORDER BY last_seen_at DESC, id DESC LIMIT ?", (MAX_RECORDED_ATTEMPTS,))
         return [dict(row) for row in rows]

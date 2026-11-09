@@ -108,6 +108,14 @@ VOXEL_ROUTER_SETUP.exe /S
 
 A atualização e a desinstalação normal preservam `config`, `queue`, `logs`, `orthanc\storage` e `orthanc\database`; exames DICOM não são apagados automaticamente.
 
+## Notas de versão
+
+### Gateway VPN (em desenvolvimento)
+
+- **Mudança de comportamento: o SCP só aceita C-STORE de modalidades cadastradas.** É preciso cadastrar o Calling AE e o IP (ou faixa CIDR de /16 ou mais específica) e deixar a modalidade habilitada. Nomes de host não são aceitos no cadastro. Sem cadastro, a associação é recusada antes de qualquer gravação. C-ECHO continua respondendo a qualquer origem, para diagnóstico.
+- A página **Modalidades** mostra as últimas 50 recusas, agregadas, com o botão **CADASTRAR**. O modo aprendizado (até 24 h) também registra C-ECHO de origens desconhecidas. Nenhum dos dois libera envio automaticamente.
+- Os logs mascaram UIDs DICOM e campos de paciente.
+
 ## Testes e cenários validados
 
 A suíte automatizada cobre autenticação, troca obrigatória de senha, limitação de tentativas, checksum, deduplicação, modalidades por série, fila e recuperação pós-reinício. Há também integração de rede com **C-ECHO e C-STORE reais** por `pynetdicom` contra o SCP local em porta efêmera.

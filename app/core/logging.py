@@ -15,8 +15,9 @@ SENSITIVE_KEYS = {
     "password", "password_hash", "token", "authorization", "api_key", "secret", "cookie",
     "patient_name", "patient_address", "patient_birth_date", "cpf",
 }
-# Trechos de chave que indicam dado de paciente/identificador clínico (comparação em minúsculas).
-SENSITIVE_KEY_PARTS = ("patient", "paciente", "name", "birth")
+# Trechos de chave que indicam dado de paciente (comparação em minúsculas). "name" sozinho NÃO entra:
+# hostname, username e destination_name são necessários para diagnóstico.
+SENSITIVE_KEY_PARTS = ("patient", "paciente", "birth")
 TOKEN_PATTERN = re.compile(r"(?i)(bearer\s+|token[=:]\s*|password[=:]\s*)[^\s,;]+")
 # UID DICOM: raiz 0/1/2 e ao menos 5 componentes numéricos (não confunde com IPv4 nem versões "1.13.0").
 DICOM_UID_PATTERN = re.compile(r"(?<![\d.])[0-2](?:\.\d+){4,}")

@@ -12,7 +12,7 @@ from pynetdicom.sop_class import Verification
 
 from app.api.server import create_app
 from app.core.engine import RouterEngine
-from app.dicom.access import DicomAccessControl, normalize_ae_title, normalize_host_network
+from app.dicom.access import MAX_RECORDED_ATTEMPTS, DicomAccessControl, normalize_ae_title, normalize_host_network
 from app.dicom.ingest import DicomIngestor
 from app.dicom.scp import DicomScp
 
@@ -154,10 +154,34 @@ def test_c_echo_with_wrong_called_ae_is_rejected(database, scp):
     assert echo(scp.port, "DESCONHECIDO", "OUTRO_ROUTER").is_rejected
 
 
-def test_learning_mode_off_records_nothing(database, scp):
+def test_rejections_are_recorded_without_learning_mode_but_echo_is_not(database, scp):
     store(scp.port, "CT_NOVO")
+    store(scp.port, "CT_NOVO")
+    echo(scp.port, "US_NOVO").release()
 
-    assert DicomAccessControl(database).list_attempts() == []
+    attempts = DicomAccessControl(database).list_attempts()
+    assert [(row["calling_ae"], row["reason"], row["attempt_count"]) for row in attempts] == [("CT_NOVO", "UNKNOWN_NODE", 2)]
+    assert stored_count(database) == 0
+
+
+def test_recorded_attempts_are_aggregated_and_limited_to_most_recent(database):
+    access = DicomAccessControl(database)
+    for index in range(MAX_RECORDED_ATTEMPTS + 10):
+        access.record_attempt(f"AE{index}", ROUTER_AE, "192.168.0.10", "UNKNOWN_NODE")
+        with database.transaction() as connection:
+            # Datas distintas e crescentes, sem depender do relógio.
+            connection.execute("UPDATE dicom_access_attempts SET last_seen_at = ? WHERE calling_ae = ?", (f"2026-01-01 00:{index // 60:02d}:{index % 60:02d}", f"AE{index}"))
+    access.record_attempt("AE5", ROUTER_AE, "192.168.0.10", "UNKNOWN_NODE")  # já descartado: volta como novo
+    access.record_attempt("AE59", ROUTER_AE, "192.168.0.10", "UNKNOWN_NODE")  # existente: agrega
+
+    attempts = access.list_attempts()
+    by_ae = {row["calling_ae"]: row for row in attempts}
+    assert len(attempts) == MAX_RECORDED_ATTEMPTS
+    assert int(database.query_one("SELECT COUNT(*) AS n FROM dicom_access_attempts")["n"]) == MAX_RECORDED_ATTEMPTS
+    assert by_ae["AE59"]["attempt_count"] == 2
+    assert by_ae["AE5"]["attempt_count"] == 1
+    assert "AE0" not in by_ae and "AE10" not in by_ae  # a volta do AE5 expulsou o mais antigo
+    assert "AE11" in by_ae
 
 
 def test_learning_mode_records_attempts_but_never_allows_store(database, paths, scp):
@@ -188,7 +212,7 @@ def test_learning_mode_expires_and_is_limited_to_24_hours(database):
     with database.transaction() as connection:
         connection.execute("UPDATE settings SET value = '2000-01-01 00:00:00' WHERE key = 'dicom.learning_mode_until'")
     assert not access.learning_active()
-    assert access.record_attempt("CT", ROUTER_AE, "127.0.0.1", "UNKNOWN_NODE") is False
+    assert access.record_attempt("CT", ROUTER_AE, "127.0.0.1", "ECHO_ONLY") is False
 
 
 def test_access_check_failure_rejects_association(database, scp, monkeypatch):

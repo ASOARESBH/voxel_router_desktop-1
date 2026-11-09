@@ -48,10 +48,15 @@ def test_log_with_uid_and_patient_fields_is_sanitized(log_file):
 
 @pytest.mark.parametrize(
     "key",
-    ["study_instance_uid", "SeriesInstance_UID", "uid", "patient_id", "PatientName", "nome_paciente", "patient_birth_date", "birthdate", "institution_name"],
+    ["study_instance_uid", "SeriesInstance_UID", "uid", "patient_id", "PatientName", "nome_paciente", "patient_birth_date", "birthdate", "patient_name"],
 )
 def test_sensitive_keys_are_redacted(key):
     assert redact_value({key: "valor"}) == {key: "[REDACTED]"}
+
+
+@pytest.mark.parametrize("key", ["hostname", "username", "destination_name", "calling_ae", "called_ae", "name"])
+def test_operational_keys_are_kept(key):
+    assert redact_value({key: "valor"}) == {key: "valor"}
 
 
 def test_uid_in_message_is_masked_but_ips_and_versions_are_kept():
