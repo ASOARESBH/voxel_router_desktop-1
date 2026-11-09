@@ -253,3 +253,51 @@ def test_ready_study_without_destination_counts_as_pending(database, paths):
     status = queue.backlog_status()
     assert status["pending_count"] == 1
     assert status["alert"] is True
+    assert [alert["code"] for alert in status["alerts"]] == ["PENDING_DELAY"]
+
+
+@pytest.mark.parametrize(
+    ("error", "code", "message_part"),
+    [
+        (CloudConnectorError("DESTINATION_REJECTED"), "DESTINATION_REJECTED", "Calling AE"),
+        (RuntimeError("bug"), "TRANSFER_UNEXPECTED", "contate o suporte"),
+    ],
+)
+async def test_rejection_and_internal_failure_alert_on_first_occurrence(database, paths, settings, error, code, message_part):
+    queue = QueueManager(database, pending_alert_minutes=60)
+    queue_id = queued_item(database, paths, queue)
+    transfer = TransferManager(database, settings, queue, connector_factory=lambda _: FakeConnector(error))
+
+    assert await transfer.process_once()
+
+    status = queue.backlog_status()
+    assert queue_row(database, queue_id)["status"] == "RETRY"
+    assert status["alert"] is False  # ainda sem atraso de 60 min
+    assert len(status["alerts"]) == 1
+    assert status["alerts"][0]["code"] == code
+    assert status["alerts"][0]["count"] == 1
+    assert message_part in status["alerts"][0]["message"]
+
+
+async def test_network_failure_does_not_alert_immediately(database, paths, settings):
+    queue = QueueManager(database, pending_alert_minutes=60)
+    queued_item(database, paths, queue)
+    transfer = TransferManager(database, settings, queue, connector_factory=lambda _: FakeConnector(CloudConnectorError("DESTINATION_UNAVAILABLE")))
+
+    assert await transfer.process_once()
+
+    assert queue.backlog_status()["alerts"] == []
+
+
+def test_paused_items_are_counted_separately_without_delay_alert(database, paths):
+    queue = QueueManager(database, pending_alert_minutes=60)
+    queue_id = queued_item(database, paths, queue)
+    queue.pause(queue_id)
+    with database.transaction() as connection:
+        connection.execute("UPDATE queue SET created_at = datetime('now', '-5 hours') WHERE id = ?", (queue_id,))
+
+    status = queue.backlog_status()
+    assert status["paused_count"] == 1
+    assert status["pending_count"] == 0
+    assert status["alert"] is False
+    assert status["alerts"] == []

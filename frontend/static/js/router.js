@@ -160,9 +160,12 @@
     const pending = backlog.pending_count
       ? `${backlog.pending_count} pendente(s); o mais antigo aguarda há ${backlog.oldest_pending_minutes} min`
       : 'Nenhum envio pendente';
-    const warning = backlog.alert ? `ATENÇÃO: envio atrasado há mais de ${backlog.alert_threshold_minutes} min. Verifique a conexão com o VOXEL. · ` : '';
-    target.textContent = `${warning}${pending} · Último envio com sucesso: ${formatUtc(backlog.last_success_at)}`;
-    target.classList.toggle('alert', Boolean(backlog.alert));
+    const paused = backlog.paused_count ? ` · ${backlog.paused_count} pausado(s) pelo operador` : '';
+    const alerts = backlog.alerts || [];
+    // Mensagens vêm do backend; textContent evita interpretar HTML.
+    const warning = alerts.map(alert => `ATENÇÃO: ${alert.message} (${alert.count} item(ns)) · `).join('');
+    target.textContent = `${warning}${pending}${paused} · Último envio com sucesso: ${formatUtc(backlog.last_success_at)}`;
+    target.classList.toggle('alert', alerts.length > 0);
   }
 
   async function loadStudies() {

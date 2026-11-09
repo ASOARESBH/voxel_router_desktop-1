@@ -14,6 +14,11 @@ LOGGER = get_logger(__name__)
 DEFAULT_RETRY_DELAYS_SECONDS = (30, 120, 300, 900)
 # Teto do backoff: nenhuma espera entre tentativas passa de 15 minutos.
 MAX_RETRY_DELAY_SECONDS = 900
+# Falhas que continuam em RETRY, mas alertam já na primeira ocorrência: não são queda de rede.
+IMMEDIATE_ALERTS = {
+    "DESTINATION_REJECTED": "O VOXEL recusou a conexão — verifique o Calling AE cadastrado na célula.",
+    "TRANSFER_UNEXPECTED": "Falha interna do Router — contate o suporte.",
+}
 
 
 @dataclass(frozen=True)
@@ -173,16 +178,36 @@ class QueueManager:
                )"""
         )
         last = self.database.query_one("SELECT MAX(completed_at) AS last_success_at FROM transfers WHERE status = 'SUCCESS'")
+        paused = self.database.query_one("SELECT COUNT(*) AS n FROM queue WHERE status = 'PAUSED'")
         # Consultas agregadas sempre devolvem exatamente uma linha.
         minutes = pending["oldest_pending_minutes"]
+        delayed = minutes is not None and int(minutes) >= self.pending_alert_minutes
+        alerts = self._immediate_alerts()
+        if delayed:
+            alerts.append({
+                "code": "PENDING_DELAY",
+                "count": int(pending["pending_count"]),
+                "message": f"Envio atrasado há mais de {self.pending_alert_minutes} min. Verifique a conexão com o VOXEL.",
+            })
         return {
             "pending_count": int(pending["pending_count"]),
+            "paused_count": int(paused["n"]),
             "oldest_pending_at": pending["oldest_pending_at"],
             "oldest_pending_minutes": minutes,
             "alert_threshold_minutes": self.pending_alert_minutes,
-            "alert": minutes is not None and int(minutes) >= self.pending_alert_minutes,
+            "alert": delayed,
+            "alerts": alerts,
             "last_success_at": last["last_success_at"],
         }
+
+    def _immediate_alerts(self) -> list[dict[str, Any]]:
+        """Itens ativos cuja última falha não é de rede comum (ver IMMEDIATE_ALERTS)."""
+        rows = self.database.query_all(
+            """SELECT last_error_code AS code, COUNT(*) AS count FROM queue
+               WHERE status IN ('QUEUED', 'RETRY', 'SENDING') AND last_error_code IN ('DESTINATION_REJECTED', 'TRANSFER_UNEXPECTED')
+               GROUP BY last_error_code ORDER BY last_error_code"""
+        )
+        return [{"code": str(row["code"]), "count": int(row["count"]), "message": IMMEDIATE_ALERTS[str(row["code"])]} for row in rows]
 
     def list_items(self, limit: int = 200) -> list[dict[str, Any]]:
         rows = self.database.query_all(
