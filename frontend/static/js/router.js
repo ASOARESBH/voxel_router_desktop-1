@@ -19,7 +19,9 @@
     const response = await fetch(path, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options });
     if (response.status === 204) return null;
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.detail || 'Não foi possível concluir a operação.');
+    // Erros de validação (422) chegam como lista: mostra a mensagem de cada campo.
+    const detail = Array.isArray(payload.detail) ? payload.detail.map(item => String(item.msg || '').replace(/^Value error, /, '')).join('; ') : payload.detail;
+    if (!response.ok) throw new Error(detail || 'Não foi possível concluir a operação.');
     return payload;
   }
 
@@ -201,6 +203,7 @@
     $('#dicom-port').textContent = config.port;
     $('#dicom-state').innerHTML = badge(health.status);
     $('#dicom-copy').textContent = `AE Title: ${config.ae_title}\nIP: ${location.hostname}\nPorta: ${config.port}`;
+    $('#outbound-ae-form').elements.outbound_ae_title.value = config.outbound_ae_title || '';
   }
 
   const attemptReasons = { UNKNOWN_NODE: 'Não cadastrada', ECHO_ONLY: 'Só C-ECHO', CALLED_AE: 'Called AE incorreto' };
@@ -241,9 +244,46 @@
     } catch (error) { alert(error.message); }
   }
 
+  const echoErrors = { DESTINATION_REJECTED: 'recusado pelo destino (verifique o AE de saída cadastrado na célula)', DESTINATION_UNAVAILABLE: 'sem resposta (rede/VPN)', DESTINATION_ECHO_FAILED: 'resposta com falha', OUTBOUND_AE_NOT_CONFIGURED: 'AE de saída não configurado' };
+
+  function echoCell(row) {
+    if (row.kind !== 'DICOM') return '—';
+    if (!row.echo_status) return '<span class="badge neutral">NUNCA TESTADO</span>';
+    const when = escapeHtml(formatUtc(row.echo_at));
+    if (row.echo_status === 'SUCCESS') return `${badge(row.echo_valid ? 'ONLINE' : 'WARNING')} ${when}${row.echo_valid ? '' : '<br><small>configuração mudou: teste de novo</small>'}`;
+    return `${badge('ERROR')} ${when}<br><small>${escapeHtml(echoErrors[row.echo_error] || row.echo_error || '')}</small>`;
+  }
+
   async function loadDestinations() {
     const rows = await api('/api/destinations');
-    $('#destinations-table').innerHTML = rows.length ? rows.map(row => `<tr><td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.kind)}</td><td>${escapeHtml(row.kind === 'DICOM' ? `${row.ae_title}@${row.host}:${row.port}` : row.endpoint)}</td><td>${row.tls_enabled ? badge('TLS') : '—'}</td><td>${labels[row.priority]}</td><td>${badge(row.enabled ? 'ONLINE' : 'PAUSED')}</td></tr>`).join('') : '<tr><td colspan="6" class="empty-cell">Nenhum destino configurado. Estudos permanecerão em armazenamento local até o provisionamento.</td></tr>';
+    state.destinations = rows;
+    $('#destinations-table').innerHTML = rows.length ? rows.map(row => `<tr><td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.kind)}</td><td>${escapeHtml(row.kind === 'DICOM' ? `${row.ae_title}@${row.host}:${row.port}` : row.endpoint)}${row.kind === 'DICOM' ? `<br><small>AE de saída: ${escapeHtml(row.outbound_ae_title || 'não configurado')}</small>` : ''}</td><td>${row.tls_enabled ? badge('TLS') : '—'}</td><td>${labels[row.priority]}</td><td>${echoCell(row)}</td><td>${badge(row.enabled ? 'ONLINE' : 'PAUSED')}</td><td><div class="action-group">${row.kind === 'DICOM' ? `<button class="secondary" data-destination-echo="${row.id}">TESTAR C-ECHO</button>` : ''}${row.enabled ? `<button class="secondary" data-destination-pause="${row.id}">PAUSAR</button>` : `<button class="primary" data-destination-enable="${row.id}" ${row.echo_valid ? '' : 'disabled title="Execute TESTAR C-ECHO com sucesso antes de habilitar"'}>HABILITAR</button>`}<button class="secondary" data-destination-delete="${row.id}">EXCLUIR</button></div></td></tr>`).join('') : '<tr><td colspan="8" class="empty-cell">Nenhum destino configurado. Estudos permanecerão em armazenamento local até o provisionamento.</td></tr>';
+  }
+
+  async function onDestinationsClick(event) {
+    const button = event.target.closest('button');
+    if (!button) return;
+    const data = button.dataset;
+    try {
+      if (data.destinationEcho) {
+        button.disabled = true;
+        button.textContent = 'TESTANDO…';
+        const result = await api(`/api/destinations/${data.destinationEcho}/echo`, { method: 'POST' });
+        if (result.echo_status !== 'SUCCESS') alert(`C-ECHO falhou: ${echoErrors[result.echo_error] || result.echo_error}`);
+      } else if (data.destinationEnable) {
+        await api(`/api/destinations/${data.destinationEnable}/enable`, { method: 'POST' });
+      } else if (data.destinationPause) {
+        await api(`/api/destinations/${data.destinationPause}/pause`, { method: 'POST' });
+      } else if (data.destinationDelete) {
+        if (!confirm('Excluir este destino?')) return;
+        await api(`/api/destinations/${data.destinationDelete}`, { method: 'DELETE' });
+      } else {
+        return;
+      }
+    } catch (error) {
+      alert(error.message);
+    }
+    await loadDestinations();
   }
 
   async function loadLogs() {
@@ -331,10 +371,12 @@
     $('#queue-table').addEventListener('click', event => { const action = event.target.dataset.queueAction; if (!action) return; api(`/api/queue/${event.target.dataset.id}/${action}`, { method: 'POST' }).then(loadQueue).catch(error => alert(error.message)); });
     $('#modalities-table').addEventListener('click', onModalitiesClick);
     $('#attempts-table').addEventListener('click', onModalitiesClick);
+    $('#destinations-table').addEventListener('click', onDestinationsClick);
+    $('#outbound-ae-form').addEventListener('submit', event => { event.preventDefault(); const value = new FormData(event.target).get('outbound_ae_title'); api('/api/settings/dicom', { method: 'PATCH', body: JSON.stringify({ values: { outbound_ae_title: value } }) }).then(() => { alert('AE de saída salvo. Destinos DICOM foram pausados se o valor mudou: teste o C-ECHO de novo.'); loadDicom(); }).catch(error => alert(error.message)); });
     $('#learning-enable').addEventListener('click', () => api('/api/dicom/learning', { method: 'POST', body: JSON.stringify({ hours: Number($('#learning-hours').value) }) }).then(loadModalities).catch(error => alert(error.message)));
     $('#learning-disable').addEventListener('click', () => api('/api/dicom/learning', { method: 'DELETE' }).then(loadModalities).catch(error => alert(error.message)));
     $('#add-modality').addEventListener('click',() => openModal('Adicionar modalidade', '<label>Nome<input name="name" required></label><label>Descrição<input name="description"></label><label>AE Title<input name="ae_title" maxlength="16" required></label><label>IP ou faixa CIDR<input name="host" placeholder="192.168.0.50 ou 192.168.0.0/24" required></label><label>Porta<input name="port" type="number" value="104" min="1" max="65535" required></label><label>Modalidade<input name="modality" placeholder="CT"></label><label>Fabricante<input name="manufacturer"></label><label>Localização<input name="location"></label><label class="checkbox-label"><input name="enabled" type="checkbox" checked> Ativa</label>', async values => { values.port = Number(values.port); await api('/api/modalities', { method: 'POST', body: JSON.stringify(values) }); await loadModalities(); }));
-    $('#add-destination').addEventListener('click', () => openModal('Adicionar destino', '<label>Nome<input name="name" required></label><label>Tipo<select name="kind"><option>DICOM</option><option>DICOMWEB</option><option>CLOUD</option></select></label><label>AE Title (DICOM)<input name="ae_title" maxlength="16"></label><label>IP / Host (DICOM)<input name="host"></label><label>Porta (DICOM)<input name="port" type="number" value="104" min="1" max="65535"></label><label>Endpoint (HTTP/S)<input name="endpoint"></label><label>Prioridade<select name="priority"><option value="1">CRITICAL</option><option value="2">HIGH</option><option value="3" selected>NORMAL</option><option value="4">LOW</option></select></label><label class="checkbox-label"><input name="tls_enabled" type="checkbox"> TLS habilitado</label><label class="checkbox-label"><input name="enabled" type="checkbox" checked> Ativo</label>', async values => { values.port = values.port ? Number(values.port) : null; values.priority = Number(values.priority); await api('/api/destinations', { method: 'POST', body: JSON.stringify(values) }); await loadDestinations(); }));
+    $('#add-destination').addEventListener('click', () => openModal('Adicionar destino', '<label>Nome<input name="name" required></label><label>Tipo<select name="kind"><option>DICOM</option><option>DICOMWEB</option><option>CLOUD</option></select></label><label>AE Title (DICOM)<input name="ae_title" maxlength="16"></label><label>IP / Host (DICOM)<input name="host"></label><label>Porta (DICOM)<input name="port" type="number" value="104" min="1" max="65535"></label><label>Endpoint (HTTP/S)<input name="endpoint"></label><label>Prioridade<select name="priority"><option value="1">CRITICAL</option><option value="2">HIGH</option><option value="3" selected>NORMAL</option><option value="4">LOW</option></select></label><label class="checkbox-label"><input name="tls_enabled" type="checkbox"> TLS habilitado</label><p class="helper">O destino será criado PAUSADO. Depois, use TESTAR C-ECHO e HABILITAR.</p>', async values => { values.tls_enabled = values.tls_enabled === 'on'; values.port = values.port ? Number(values.port) : null; values.priority = Number(values.priority); await api('/api/destinations', { method: 'POST', body: JSON.stringify(values) }); await loadDestinations(); }));
     $('#settings-system').addEventListener('submit', event => { event.preventDefault(); const form = new FormData(event.target); api('/api/settings/system', { method: 'PATCH', body: JSON.stringify({ values: Object.fromEntries(form) }) }).then(() => alert('Configurações salvas.')).catch(error => alert(error.message)); });
     $('#settings-storage').addEventListener('submit', event => { event.preventDefault(); const form = new FormData(event.target); api('/api/settings/storage', { method: 'PATCH', body: JSON.stringify({ values: { retention_hours: Number(form.get('retention_hours')), auto_delete: form.get('auto_delete') === 'on' } }) }).then(() => alert('Política de retenção salva.')).catch(error => alert(error.message)); });
     $('#change-username').addEventListener('submit', event => { event.preventDefault(); api('/api/auth/username', { method: 'PUT', body: JSON.stringify(Object.fromEntries(new FormData(event.target))) }).then(() => alert('Usuário alterado.')).catch(error => alert(error.message)); });

@@ -115,6 +115,8 @@ A atualização e a desinstalação normal preservam `config`, `queue`, `logs`, 
 - **Mudança de comportamento: o SCP só aceita C-STORE de modalidades cadastradas.** É preciso cadastrar o Calling AE e o IP (ou faixa CIDR de /16 ou mais específica) e deixar a modalidade habilitada. Nomes de host não são aceitos no cadastro. Sem cadastro, a associação é recusada antes de qualquer gravação. C-ECHO continua respondendo a qualquer origem, para diagnóstico.
 - A página **Modalidades** mostra as últimas 50 recusas, agregadas, com o botão **CADASTRAR**. O modo aprendizado (até 24 h) também registra C-ECHO de origens desconhecidas. Nenhum dos dois libera envio automaticamente.
 - Os logs mascaram UIDs DICOM e campos de paciente.
+- **AE de saída** (Calling AE usado para o VOXEL) é configurado por instalação em *DICOM local*, separado do AE do SCP. Enquanto não for definido, nenhum envio acontece.
+- **Destino novo nasce PAUSADO.** Só pode ser habilitado depois de um **TESTAR C-ECHO** com sucesso; data e resultado ficam registrados. Mudar AE, host, porta ou TLS do destino, ou o AE de saída, pausa o destino e exige novo C-ECHO.
 
 ## Testes e cenários validados
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 
-from app.cloud.connectors import CloudConnector, CloudConnectorError, DicomCloudConnector, UnavailableCloudConnector
+from app.cloud.connectors import CloudConnector, CloudConnectorError, DicomCloudConnector, UnavailableCloudConnector, outbound_ae_title
 from app.config.settings import Settings
 from app.core.database import Database
 from app.core.logging import get_logger
@@ -75,15 +75,19 @@ class TransferManager:
     def _default_connector(self, destination_id: int) -> CloudConnector:
         destination = self.database.query_one("SELECT kind FROM destinations WHERE id = ?", (destination_id,))
         if destination and destination["kind"] == "DICOM":
-            return DicomCloudConnector(
-                self.database,
-                self.settings.paths.storage,
-                destination_id,
-                str(self.settings.get("dicom", "ae_title", default="VOXEL_ROUTER")),
-                int(self.settings.get("dicom", "association_timeout_seconds", default=15)),
-                int(self.settings.get("dicom", "network_timeout_seconds", default=30)),
-            )
+            return self.dicom_connector(destination_id)
         return UnavailableCloudConnector()
+
+    def dicom_connector(self, destination_id: int) -> DicomCloudConnector:
+        """Conector C-STORE/C-ECHO com o AE de saída da instalação (nunca o AE local do SCP)."""
+        return DicomCloudConnector(
+            self.database,
+            self.settings.paths.storage,
+            destination_id,
+            outbound_ae_title(self.settings),
+            int(self.settings.get("dicom", "association_timeout_seconds", default=15)),
+            int(self.settings.get("dicom", "network_timeout_seconds", default=30)),
+        )
 
     @staticmethod
     def _error_code(exc: CloudConnectorError) -> str:

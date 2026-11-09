@@ -14,6 +14,7 @@ from app.cloud.connectors import (
     DicomCloudConnector,
     TransferResult,
     cstore_failure,
+    echo_target,
 )
 from app.dicom.ingest import DicomIngestor
 from app.queue.manager import MAX_RETRY_DELAY_SECONDS, QueueManager
@@ -202,6 +203,9 @@ async def test_unreachable_destination_is_connectivity_failure(database, paths):
             "INSERT INTO destinations(name, kind, ae_title, host, port) VALUES ('Fechado', 'DICOM', 'DESTINO', '127.0.0.1', ?)",
             (closed_port,),
         ).lastrowid
+        # Destino já verificado por C-ECHO (Fase 3): a falha aqui deve ser só de rede.
+        row = connection.execute("SELECT * FROM destinations WHERE id = ?", (destination_id,)).fetchone()
+        connection.execute("UPDATE destinations SET echo_status = 'SUCCESS', echo_target = ? WHERE id = ?", (echo_target("VOXEL_ROUTER", row), destination_id))
     ingest(DicomIngestor(database, paths))
     study_id = database.query_one("SELECT id FROM studies")["id"]
     connector = DicomCloudConnector(database, paths.storage, destination_id, "VOXEL_ROUTER", association_timeout_seconds=3)

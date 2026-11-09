@@ -18,6 +18,8 @@ MAX_RETRY_DELAY_SECONDS = 900
 IMMEDIATE_ALERTS = {
     "DESTINATION_REJECTED": "O VOXEL recusou a conexão — verifique o Calling AE cadastrado na célula.",
     "TRANSFER_UNEXPECTED": "Falha interna do Router — contate o suporte.",
+    "DESTINATION_NOT_VERIFIED": "Destino sem C-ECHO válido para a configuração atual — use Testar C-ECHO em Destinos.",
+    "OUTBOUND_AE_NOT_CONFIGURED": "AE de saída (Calling AE) não configurado — defina-o em DICOM local.",
 }
 
 
@@ -204,7 +206,7 @@ class QueueManager:
         """Itens ativos cuja última falha não é de rede comum (ver IMMEDIATE_ALERTS)."""
         rows = self.database.query_all(
             """SELECT last_error_code AS code, COUNT(*) AS count FROM queue
-               WHERE status IN ('QUEUED', 'RETRY', 'SENDING') AND last_error_code IN ('DESTINATION_REJECTED', 'TRANSFER_UNEXPECTED')
+               WHERE status IN ('QUEUED', 'RETRY', 'SENDING') AND last_error_code IN ('DESTINATION_REJECTED', 'TRANSFER_UNEXPECTED', 'DESTINATION_NOT_VERIFIED', 'OUTBOUND_AE_NOT_CONFIGURED')
                GROUP BY last_error_code ORDER BY last_error_code"""
         )
         return [{"code": str(row["code"]), "count": int(row["count"]), "message": IMMEDIATE_ALERTS[str(row["code"])]} for row in rows]

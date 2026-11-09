@@ -15,6 +15,7 @@
   },
   "dicom": {
     "ae_title": "VOXEL_ROUTER",
+    "outbound_ae_title": "",
     "port": 4242,
     "association_timeout_seconds": 15,
     "network_timeout_seconds": 30,

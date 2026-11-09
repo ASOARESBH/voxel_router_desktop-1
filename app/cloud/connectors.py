@@ -94,6 +94,23 @@ class UnavailableCloudConnector(CloudConnector):
         return None
 
 
+def outbound_ae_title(settings: Any) -> str:
+    """Calling AE usado para o VOXEL: por instalação e separado do AE local do SCP. Vazio = não configurado."""
+    return str(settings.get("dicom", "outbound_ae_title", default="") or "").strip()
+
+
+def echo_target(calling_ae_title: str, destination: Any) -> str:
+    """Identidade que o C-ECHO comprovou: mudar qualquer parte exige novo teste antes de enviar."""
+    return "|".join(
+        str(part).strip()
+        for part in (calling_ae_title, destination["ae_title"] or "", destination["host"] or "", destination["port"] or "", int(bool(destination["tls_enabled"])))
+    )
+
+
+def echo_verified(calling_ae_title: str, destination: Any) -> bool:
+    return destination["echo_status"] == "SUCCESS" and destination["echo_target"] == echo_target(calling_ae_title, destination)
+
+
 class DicomCloudConnector(CloudConnector):
     """Envia todas as instâncias persistidas de um estudo a um destino C-STORE."""
 
@@ -115,15 +132,32 @@ class DicomCloudConnector(CloudConnector):
         self._destination: dict[str, Any] | None = None
 
     async def connect(self) -> None:
-        row = self.database.query_one("SELECT id, name, kind, ae_title, host, port, tls_enabled, enabled FROM destinations WHERE id = ?", (self.destination_id,))
-        if row is None:
-            raise CloudConnectorError("DESTINATION_INVALID", permanent=True)
+        row = self._load()
         if not row["enabled"]:
             # Destino pausado pelo operador: o estudo aguarda em RETRY até ser reabilitado.
             raise CloudConnectorError("DESTINATION_DISABLED")
+        if not echo_verified(self.calling_ae_title, row):
+            # Ex.: Calling AE alterado direto no router.json. Aguarda em RETRY até novo C-ECHO.
+            raise CloudConnectorError("DESTINATION_NOT_VERIFIED")
+        self._destination = dict(row)
+
+    async def test_echo(self) -> None:
+        """C-ECHO de verificação, inclusive com o destino pausado (é o que libera habilitá-lo)."""
+        self._destination = dict(self._load())
+        await asyncio.to_thread(self._echo)
+
+    def _load(self) -> Any:
+        row = self.database.query_one(
+            "SELECT id, name, kind, ae_title, host, port, tls_enabled, enabled, echo_status, echo_target FROM destinations WHERE id = ?",
+            (self.destination_id,),
+        )
+        if row is None:
+            raise CloudConnectorError("DESTINATION_INVALID", permanent=True)
         if row["kind"] != "DICOM" or not row["host"] or not row["port"] or not row["ae_title"]:
             raise CloudConnectorError("DESTINATION_INVALID", permanent=True)
-        self._destination = dict(row)
+        if not self.calling_ae_title.strip():
+            raise CloudConnectorError("OUTBOUND_AE_NOT_CONFIGURED")
+        return row
 
     async def authenticate(self) -> None:
         # A autenticação DICOM é feita pela associação e, quando configurado, pela camada TLS.
