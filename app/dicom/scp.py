@@ -62,7 +62,7 @@ class DicomScp:
             raw_bytes = buffer.getvalue()
             orthanc_instance_id = self.orthanc_store(raw_bytes) if self.orthanc_store else None
             result = self.ingestor.receive_dataset(dataset, raw_bytes, orthanc_instance_id)
-            LOGGER.info("dicom_c_store_accepted", study_instance_uid=result["study_instance_uid"], duplicate=result["duplicate"])
+            LOGGER.info("dicom_c_store_accepted", duplicate=result["duplicate"])
             return 0x0000
         except DicomValidationError as exc:
             LOGGER.warning("dicom_c_store_invalid", error=str(exc))
