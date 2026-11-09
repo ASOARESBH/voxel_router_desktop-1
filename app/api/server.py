@@ -136,6 +136,8 @@ def create_app(engine: RouterEngine | None = None, start_engine: bool = False) -
         database.initialize()
         if start_engine:
             current_engine.initialize()
+            # Sem isso a API sobe, o SCP recebe, mas nada é reconciliado nem enviado.
+            current_engine.start_background_tasks()
         yield
         if start_engine:
             await current_engine.stop()
