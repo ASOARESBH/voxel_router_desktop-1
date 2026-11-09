@@ -24,11 +24,6 @@ class RunningScp:
     port = 4242
 
 
-class ConnectedCloud:
-    async def health_check(self) -> str:
-        return "CONNECTED"
-
-
 async def no_network() -> dict[str, str]:
     return {"local_network": "OK", "dns": "OK", "internet": "OK"}
 
@@ -50,14 +45,15 @@ def test_orthanc_configuration_uses_independent_ports_and_persistent_paths(setti
 
 @pytest.mark.asyncio
 async def test_dashboard_health_reports_external_orthanc_and_separate_ports(settings, monkeypatch):
-    monitor = HealthMonitor(settings, OnlineOrthanc(), RunningScp(), ConnectedCloud())
+    monitor = HealthMonitor(settings, OnlineOrthanc(), RunningScp())
     monkeypatch.setattr(monitor, "network", no_network)
 
     result = await monitor.snapshot()
 
     assert result["router"]["status"] == "ONLINE"
     assert result["orthanc"] == {"status": "ONLINE", "detail": "1.13.0", "dicom_port": 4243, "http_port": 8042}
-    assert result["cloud"]["status"] == "CONNECTED"
+    # Sem fila/destinos não há fato que justifique "conectado".
+    assert result["cloud"]["status"] == "DISCONNECTED"
     assert result["dicom"] == {"status": "ONLINE", "ae_title": "VOXEL_ROUTER", "port": 4242}
 
 

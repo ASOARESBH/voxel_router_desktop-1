@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import ipaddress
 import threading
 import time
 from collections.abc import Callable
@@ -35,10 +36,13 @@ class DicomScp:
         max_associations: int = 8,
         orthanc_store: Callable[[bytes], str | None] | None = None,
         access: DicomAccessControl | None = None,
+        bind_host: str = "0.0.0.0",
     ) -> None:
         self.ingestor = ingestor
         self.ae_title = ae_title
         self.port = port
+        # Endereço literal IPv4: 0.0.0.0 (todas as interfaces, padrão de produção) ou um IP local específico.
+        self.bind_host = str(ipaddress.IPv4Address(str(bind_host).strip()))
         self.max_associations = max_associations
         self.orthanc_store = orthanc_store
         self.access = access or DicomAccessControl(ingestor.database)
@@ -61,7 +65,7 @@ class DicomScp:
             for context in AllStoragePresentationContexts:
                 ae.add_supported_context(context.abstract_syntax, context.transfer_syntax)
             self._server = ae.start_server(
-                ("0.0.0.0", self.port),
+                (self.bind_host, self.port),
                 block=False,
                 evt_handlers=[
                     (evt.EVT_REQUESTED, self._handle_requested),
@@ -70,7 +74,7 @@ class DicomScp:
                     (evt.EVT_RELEASED, self._handle_released),
                 ],
             )
-            LOGGER.info("dicom_scp_started", ae_title=self.ae_title, port=self.port)
+            LOGGER.info("dicom_scp_started", ae_title=self.ae_title, bind_host=self.bind_host, port=self.port)
 
     def stop(self) -> None:
         with self._lock:

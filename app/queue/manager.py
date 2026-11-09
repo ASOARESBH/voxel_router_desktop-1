@@ -21,6 +21,12 @@ IMMEDIATE_ALERTS = {
     "DESTINATION_NOT_VERIFIED": "Destino sem C-ECHO válido para a configuração atual — use Testar C-ECHO em Destinos.",
     "OUTBOUND_AE_NOT_CONFIGURED": "AE de saída (Calling AE) não configurado — defina-o em DICOM local.",
 }
+# Item já entregue (SENT, ou estudo VALIDATED) ou cancelado não pode ser pausado: retomá-lo reenviaria o estudo.
+_PAUSABLE = "status NOT IN ('SENT', 'CANCELLED', 'PAUSED') AND study_id NOT IN (SELECT id FROM studies WHERE status = 'VALIDATED')"
+
+
+class QueueStateError(ValueError):
+    """Transição de fila não permitida no estado atual do item."""
 
 
 @dataclass(frozen=True)
@@ -141,10 +147,11 @@ class QueueManager:
         self._transition(queue_id, "RETRY", "UPDATE queue SET status = 'RETRY', next_attempt_at = CURRENT_TIMESTAMP, locked_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
 
     def pause(self, queue_id: int) -> None:
-        self._transition(queue_id, "PAUSED", "UPDATE queue SET status = 'PAUSED', locked_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+        self._transition(queue_id, "PAUSED", f"UPDATE queue SET status = 'PAUSED', locked_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND {_PAUSABLE}", "Item já enviado, validado ou cancelado não pode ser pausado")
 
     def resume(self, queue_id: int) -> None:
-        self._transition(queue_id, "QUEUED", "UPDATE queue SET status = 'QUEUED', next_attempt_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+        # Só retoma o que foi pausado: nunca recoloca na fila um item já enviado.
+        self._transition(queue_id, "QUEUED", "UPDATE queue SET status = 'QUEUED', next_attempt_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'PAUSED'", "Só é possível retomar um item pausado")
 
     def cancel(self, queue_id: int) -> None:
         self._transition(queue_id, "CANCELLED", "UPDATE queue SET status = 'CANCELLED', locked_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
@@ -214,7 +221,7 @@ class QueueManager:
     def list_items(self, limit: int = 200) -> list[dict[str, Any]]:
         rows = self.database.query_all(
             """SELECT q.id, q.priority, q.status, q.attempt_count, q.next_attempt_at, q.last_error_code,
-               s.study_instance_uid, s.patient_id, s.patient_name, s.modalities_in_study, s.total_bytes, s.received_at,
+               s.status AS study_status, s.study_instance_uid, s.patient_id, s.patient_name, s.modalities_in_study, s.total_bytes, s.received_at,
                d.name AS destination_name
                FROM queue q JOIN studies s ON s.id = q.study_id JOIN destinations d ON d.id = q.destination_id
                ORDER BY q.priority ASC, q.created_at DESC LIMIT ?""",
@@ -222,9 +229,11 @@ class QueueManager:
         )
         return [dict(row) for row in rows]
 
-    def _transition(self, queue_id: int, state: str, sql: str) -> None:
+    def _transition(self, queue_id: int, state: str, sql: str, refused: str = "") -> None:
         with self.database.transaction() as connection:
             cursor = connection.execute(sql, (queue_id,))
             if cursor.rowcount != 1:
-                raise KeyError("Item de fila não encontrado")
+                if connection.execute("SELECT 1 FROM queue WHERE id = ?", (queue_id,)).fetchone() is None:
+                    raise KeyError("Item de fila não encontrado")
+                raise QueueStateError(refused or "Transição de fila não permitida")
         LOGGER.info("queue_item_transition", queue_id=queue_id, state=state)

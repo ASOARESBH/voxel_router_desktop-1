@@ -4,14 +4,11 @@ import socket
 import sqlite3
 
 import pytest
-from fastapi.testclient import TestClient
 from pynetdicom import AE, evt
 from pynetdicom.sop_class import Verification
 
-from app.api.server import create_app
 from app.cloud.connectors import CloudConnectorError, DicomCloudConnector
 from app.core.database import Database
-from app.core.engine import RouterEngine
 
 OUTBOUND_AE = "CLINICA_GH"
 VOXEL_AE = "VOXEL_CELL"
@@ -39,19 +36,6 @@ def voxel_cell():
     server = ae.start_server(("127.0.0.1", port), block=False, evt_handlers=[(evt.EVT_C_ECHO, on_echo)])
     yield port, calling_aes
     server.shutdown()
-
-
-@pytest.fixture
-def client(settings, database):
-    settings.update("orthanc", {"enabled": False})
-    settings.update("dicom", {"association_timeout_seconds": 3, "network_timeout_seconds": 3})
-    engine = RouterEngine(settings, database)
-    with TestClient(create_app(engine, start_engine=False)) as test_client:
-        test_client.post("/api/auth/provision", json={"username": "voxeladmin", "password": "SenhaInicial@2026"})
-        test_client.post("/api/auth/login", json={"username": "voxeladmin", "password": "SenhaInicial@2026"})
-        test_client.post("/api/auth/change-password", json={"current_password": "SenhaInicial@2026", "new_password": "SenhaDefinitiva@2026"})
-        test_client.post("/api/auth/login", json={"username": "voxeladmin", "password": "SenhaDefinitiva@2026"})
-        yield test_client
 
 
 def destination(port: int, **overrides) -> dict:

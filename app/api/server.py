@@ -20,6 +20,8 @@ from app.cloud.connectors import CloudConnectorError, echo_target, echo_verified
 from app.core.engine import RouterEngine
 from app.core.logging import get_logger
 from app.dicom.access import LEARNING_MAX_HOURS, normalize_ae_title, normalize_host_network
+from app.monitoring.network import local_ipv4_addresses
+from app.queue.manager import QueueStateError
 from app.security.secrets import SecretStoreError, WindowsSecretStore
 
 LOGGER = get_logger(__name__)
@@ -82,34 +84,27 @@ class RegisterAttemptPayload(BaseModel):
 
 class DestinationPayload(BaseModel):
     name: str = Field(min_length=2, max_length=128)
-    kind: str = Field(pattern="^(DICOM|DICOMWEB|CLOUD)$")
-    ae_title: str | None = Field(default=None, max_length=16)
-    host: str | None = Field(default=None, max_length=255)
-    port: int | None = Field(default=None, ge=1, le=65535)
-    endpoint: str | None = Field(default=None, max_length=2048)
+    # Só DICOM: não há envio DICOMweb/CLOUD implementado. Registros antigos desses tipos só são listados.
+    kind: str = Field(default="DICOM", pattern="^DICOM$")
+    ae_title: str = Field(min_length=1, max_length=16)
+    host: str = Field(min_length=1, max_length=255)
+    port: int = Field(ge=1, le=65535)
     tls_enabled: bool = False
     priority: int = Field(default=3, ge=1, le=4)
     # Sem `enabled`: destino nasce PAUSED e só é habilitado por /enable após C-ECHO com sucesso.
 
     @field_validator("ae_title")
     @classmethod
-    def validate_ae_title(cls, value: str | None) -> str | None:
-        return normalize_ae_title(value) if value not in (None, "") else None
+    def validate_ae_title(cls, value: str) -> str:
+        return normalize_ae_title(value)
 
     @field_validator("host")
     @classmethod
-    def validate_host(cls, value: str | None) -> str | None:
-        text = (value or "").strip()
-        if text and any(char.isspace() or char in "/@\\" for char in text):
+    def validate_host(cls, value: str) -> str:
+        text = value.strip()
+        if not text or any(char.isspace() or char in "/@\\" for char in text):
             raise ValueError("Host inválido")
-        return text or None
-
-    @field_validator("endpoint")
-    @classmethod
-    def validate_endpoint(cls, value: str | None) -> str | None:
-        if value and not value.startswith(("https://", "http://")):
-            raise ValueError("Endpoint deve usar HTTP ou HTTPS")
-        return value
+        return text
 
 
 class QueuePriorityPayload(BaseModel):
@@ -192,8 +187,8 @@ def create_app(engine: RouterEngine | None = None, start_engine: bool = False) -
 
     @app.get("/health/cloud")
     @app.get("/api/health/cloud")
-    async def health_cloud() -> dict[str, str]:
-        return {"status": "DISCONNECTED"}
+    async def health_cloud() -> dict[str, Any]:
+        return current_engine.health.cloud()
 
     @app.get("/health/dicom")
     @app.get("/api/health/dicom")
@@ -405,7 +400,8 @@ def create_app(engine: RouterEngine | None = None, start_engine: bool = False) -
 
     @app.get("/api/dicom")
     async def dicom_status(_: dict[str, Any] = Depends(configured_user)) -> dict[str, Any]:
-        return await health_dicom()
+        # IPs da LAN só para usuário autenticado: é o que o operador informa à modalidade.
+        return {**await health_dicom(), "bind_host": current_engine.scp.bind_host, "local_ipv4": local_ipv4_addresses()}
 
     @app.post("/api/dicom/start")
     async def dicom_start(request: Request, user: dict[str, Any] = Depends(configured_user)) -> dict[str, str]:
@@ -528,14 +524,12 @@ def create_app(engine: RouterEngine | None = None, start_engine: bool = False) -
     @app.post("/api/destinations", status_code=status.HTTP_201_CREATED)
     async def create_destination(payload: DestinationPayload, request: Request, user: dict[str, Any] = Depends(configured_user)) -> dict[str, int]:
         values = payload.model_dump()
-        if values["kind"] == "DICOM" and not (values["ae_title"] and values["host"] and values["port"]):
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Destino DICOM exige AE Title, host e porta")
         try:
             with database.transaction() as connection:
                 # Todo destino novo nasce PAUSED (enabled = 0).
                 cursor = connection.execute(
-                    "INSERT INTO destinations(name, kind, ae_title, host, port, endpoint, tls_enabled, priority, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)",
-                    (values["name"], values["kind"], values["ae_title"], values["host"], values["port"], values["endpoint"], int(values["tls_enabled"]), values["priority"]),
+                    "INSERT INTO destinations(name, kind, ae_title, host, port, tls_enabled, priority, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, 0)",
+                    (values["name"], values["kind"], values["ae_title"], values["host"], values["port"], int(values["tls_enabled"]), values["priority"]),
                 )
                 destination_id = int(cursor.lastrowid)
                 row = connection.execute("SELECT * FROM destinations WHERE id = ?", (destination_id,)).fetchone()
@@ -547,16 +541,14 @@ def create_app(engine: RouterEngine | None = None, start_engine: bool = False) -
     @app.put("/api/destinations/{destination_id}", status_code=status.HTTP_204_NO_CONTENT)
     async def update_destination(destination_id: int, payload: DestinationPayload, request: Request, user: dict[str, Any] = Depends(configured_user)) -> None:
         values = payload.model_dump()
-        if values["kind"] == "DICOM" and not (values["ae_title"] and values["host"] and values["port"]):
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Destino DICOM exige AE Title, host e porta")
         try:
             with database.transaction() as connection:
                 before = connection.execute("SELECT * FROM destinations WHERE id = ?", (destination_id,)).fetchone()
                 if before is None:
                     raise HTTPException(status.HTTP_404_NOT_FOUND, "Destino não encontrado")
                 connection.execute(
-                    "UPDATE destinations SET name=?, kind=?, ae_title=?, host=?, port=?, endpoint=?, tls_enabled=?, priority=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
-                    (values["name"], values["kind"], values["ae_title"], values["host"], values["port"], values["endpoint"], int(values["tls_enabled"]), values["priority"], destination_id),
+                    "UPDATE destinations SET name=?, kind=?, ae_title=?, host=?, port=?, endpoint=NULL, tls_enabled=?, priority=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                    (values["name"], values["kind"], values["ae_title"], values["host"], values["port"], int(values["tls_enabled"]), values["priority"], destination_id),
                 )
                 if any(before[key] != (int(values[key]) if key == "tls_enabled" else values[key]) for key in destination_identity):
                     # Mudou para onde/como enviar: pausa e exige novo C-ECHO antes de habilitar.
@@ -643,15 +635,23 @@ def create_app(engine: RouterEngine | None = None, start_engine: bool = False) -
     async def list_queue(_: dict[str, Any] = Depends(configured_user)) -> list[dict[str, Any]]:
         return current_engine.queue.list_items()
 
+    def queue_transition(queue_id: int, action: str, transition: Any, request: Request, user: dict[str, Any]) -> None:
+        try:
+            transition(queue_id)
+        except KeyError as exc:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Item de fila não encontrado") from exc
+        except QueueStateError as exc:
+            auth.audit(int(user["id"]), action, "QUEUE", str(queue_id), client_ip(request), "DENIED", str(exc))
+            raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+        auth.audit(int(user["id"]), action, "QUEUE", str(queue_id), client_ip(request), "SUCCESS")
+
     @app.post("/api/queue/{queue_id}/pause", status_code=status.HTTP_204_NO_CONTENT)
     async def queue_pause(queue_id: int, request: Request, user: dict[str, Any] = Depends(configured_user)) -> None:
-        current_engine.queue.pause(queue_id)
-        auth.audit(int(user["id"]), "PAUSE_QUEUE", "QUEUE", str(queue_id), client_ip(request), "SUCCESS")
+        queue_transition(queue_id, "PAUSE_QUEUE", current_engine.queue.pause, request, user)
 
     @app.post("/api/queue/{queue_id}/resume", status_code=status.HTTP_204_NO_CONTENT)
     async def queue_resume(queue_id: int, request: Request, user: dict[str, Any] = Depends(configured_user)) -> None:
-        current_engine.queue.resume(queue_id)
-        auth.audit(int(user["id"]), "RESUME_QUEUE", "QUEUE", str(queue_id), client_ip(request), "SUCCESS")
+        queue_transition(queue_id, "RESUME_QUEUE", current_engine.queue.resume, request, user)
 
     @app.post("/api/queue/{queue_id}/retry", status_code=status.HTTP_204_NO_CONTENT)
     async def queue_retry(queue_id: int, request: Request, user: dict[str, Any] = Depends(configured_user)) -> None:

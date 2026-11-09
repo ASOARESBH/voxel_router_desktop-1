@@ -57,7 +57,7 @@ def add_node(database, ae_title: str, host: str, enabled: bool = True) -> int:
 @pytest.fixture
 def scp(database, paths):
     port = available_port()
-    server = DicomScp(DicomIngestor(database, paths), ROUTER_AE, port)
+    server = DicomScp(DicomIngestor(database, paths), ROUTER_AE, port, bind_host="127.0.0.1")
     server.start()
     time.sleep(0.1)
     yield server

@@ -24,7 +24,7 @@ def test_scp_accepts_c_echo_and_c_store(database, paths):
         connection.execute("INSERT INTO dicom_nodes(name, ae_title, host, port) VALUES ('SCU de teste', 'TEST_SCU', '127.0.0.1', 104)")
     ingestor = DicomIngestor(database, paths)
     port = available_port()
-    scp = DicomScp(ingestor, "VOXEL_ROUTER_T", port)
+    scp = DicomScp(ingestor, "VOXEL_ROUTER_T", port, bind_host="127.0.0.1")
     assert scp.running is False
     scp.start()
     time.sleep(0.1)

@@ -45,6 +45,7 @@ class RouterEngine:
             int(self.settings.get("dicom", "port", default=4242)),
             int(self.settings.get("dicom", "max_associations", default=8)),
             self.orthanc.store_instance_sync if bool(self.settings.get("orthanc", "enabled", default=True)) else None,
+            bind_host=str(self.settings.get("dicom", "bind_host", default="0.0.0.0")),
         )
         self.queue = QueueManager(
             self.database,

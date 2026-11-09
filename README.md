@@ -117,6 +117,10 @@ A atualização e a desinstalação normal preservam `config`, `queue`, `logs`, 
 - Os logs mascaram UIDs DICOM e campos de paciente.
 - **AE de saída** (Calling AE usado para o VOXEL) é configurado por instalação em *DICOM local*, separado do AE do SCP. Enquanto não for definido, nenhum envio acontece.
 - **Destino novo nasce PAUSADO.** Só pode ser habilitado depois de um **TESTAR C-ECHO** com sucesso; data e resultado ficam registrados. Mudar AE, host, porta ou TLS do destino, ou o AE de saída, pausa o destino e exige novo C-ECHO.
+- **Só destinos DICOM (C-STORE)** podem ser criados ou editados. Registros antigos DICOMWEB/CLOUD continuam listados como "não suportado" e só podem ser excluídos.
+- Itens da fila já enviados, validados ou cancelados não podem ser pausados nem retomados (retomar reenviaria o estudo).
+- `dicom.bind_host` define onde o SCP escuta: `0.0.0.0` (padrão, todas as interfaces) ou um IPv4 local. Testes e demonstrações usam `127.0.0.1`. A página *DICOM local* mostra os IPv4 da LAN (sem loopback, APIPA nem adaptadores VPN/virtuais), nunca `0.0.0.0`.
+- O card **VOXEL CLOUD** fica verde só com destino DICOM habilitado, C-ECHO válido e sucesso (C-ECHO ou envio) nas últimas 24 h sem falha posterior; mostra a data do último sucesso. Ainda não há verificação ativa.
 
 ## Testes e cenários validados
 
