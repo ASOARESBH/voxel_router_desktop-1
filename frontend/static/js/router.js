@@ -250,8 +250,8 @@
     if (row.kind !== 'DICOM') return '—';
     if (!row.echo_status) return '<span class="badge neutral">NUNCA TESTADO</span>';
     const when = escapeHtml(formatUtc(row.echo_at));
-    if (row.echo_status === 'SUCCESS') return `${badge(row.echo_valid ? 'ONLINE' : 'WARNING')} ${when}${row.echo_valid ? '' : '<br><small>configuração mudou: teste de novo</small>'}`;
-    return `${badge('ERROR')} ${when}<br><small>${escapeHtml(echoErrors[row.echo_error] || row.echo_error || '')}</small>`;
+    if (row.echo_status === 'SUCCESS') return row.echo_valid ? `<span class="badge online">SUCESSO</span> ${when}` : `<span class="badge warning">REFAZER</span> ${when}<br><small>configuração mudou: teste de novo</small>`;
+    return `<span class="badge error">FALHOU</span> ${when}<br><small>${escapeHtml(echoErrors[row.echo_error] || row.echo_error || '')}</small>`;
   }
 
   async function loadDestinations() {
