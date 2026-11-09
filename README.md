@@ -13,7 +13,7 @@ O repositório começou vazio. Esta entrega estabelece o MVP de código-fonte, c
 | Segurança | Senhas com **Argon2id**, sessão revogável com token armazenado como hash, limite de tentativas, troca obrigatória no primeiro login, auditoria e redaction de segredos/PHI nos logs |
 | DICOM | SCP com **C-ECHO** e **C-STORE**, validação de UIDs, checksum SHA-256, deduplicação por SOP Instance UID, modalidades derivadas das séries e SCU C-STORE para destino |
 | Persistência | SQLite em WAL/FULL, transações `IMMEDIATE`, estado de estudo/instância/série, fila, tentativas, transferências, erros, auditoria e eventos |
-| Resiliência | Fila persistente, recuperação de itens `SENDING` após reinício, janela de completude de estudo, retry limitado configurável, retenção apenas de estudos validados |
+| Resiliência | Fila persistente, recuperação de itens `SENDING` após reinício, janela de completude de estudo, retry sem limite para falhas de conectividade (backoff até 15 min) e ERROR só para rejeição definitiva, retenção apenas de estudos validados |
 | Orthanc | Processo `Orthanc.exe` separado, REST de saúde real, DICOM `4243`, configuração persistente e host de serviço próprio instalado automaticamente |
 | Interface | Login, provisionamento inicial, dashboard de saúde/fila/storage, estudos, fila, SCP DICOM, modalidades, destinos, logs, auditoria e configurações |
 | Windows | Instalador único para Router + Orthanc, serviços `VOXELRouter`/`VOXELOrthanc`, diagnóstico final, diretórios persistentes e firewall DICOM privado |

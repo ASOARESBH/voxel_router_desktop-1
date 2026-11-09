@@ -35,7 +35,7 @@
   "queue": {
     "max_concurrent_transfers": 2,
     "retry_delays_seconds": [30, 120, 300, 900],
-    "max_attempts": 4
+    "pending_alert_minutes": 60
   },
   "storage": {
     "retention_hours": 168,

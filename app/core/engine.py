@@ -46,10 +46,14 @@ class RouterEngine:
             int(self.settings.get("dicom", "max_associations", default=8)),
             self.orthanc.store_instance_sync if bool(self.settings.get("orthanc", "enabled", default=True)) else None,
         )
-        self.queue = QueueManager(self.database, list(self.settings.get("queue", "retry_delays_seconds", default=[30, 120, 300, 900])), int(self.settings.get("queue", "max_attempts", default=4)))
+        self.queue = QueueManager(
+            self.database,
+            list(self.settings.get("queue", "retry_delays_seconds", default=[30, 120, 300, 900])),
+            int(self.settings.get("queue", "pending_alert_minutes", default=60)),
+        )
         self.transfer = TransferManager(self.database, self.settings, self.queue)
         self.non_dicom = NonDicomWorker(self.settings, self.database)
-        self.health = HealthMonitor(self.settings, self.orthanc, self.scp, non_dicom=self.non_dicom)
+        self.health = HealthMonitor(self.settings, self.orthanc, self.scp, non_dicom=self.non_dicom, queue=self.queue)
         self._stop = asyncio.Event()
         self._tasks: list[asyncio.Task[Any]] = []
 

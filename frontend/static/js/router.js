@@ -138,6 +138,7 @@
       const nonDicomStats = health.non_dicom?.stats || {};
       const metrics = [['RECEBIDOS', queue.received], ['PENDENTES', queue.pending], ['ENVIANDO', queue.sending], ['ENVIADOS', queue.sent], ['ERROS', queue.errors], ['AGUARDANDO RETRY', queue.retry], ['NON-DICOM PENDENTES', nonDicomStats.pending || 0], ['NON-DICOM PROCESSANDO', nonDicomStats.processing || 0], ['NON-DICOM FALHOS', nonDicomStats.failed || 0]];
       $('#metric-cards').innerHTML = metrics.map(([name, value]) => `<article class="metric-card"><p>${name}</p><strong>${Number(value).toLocaleString('pt-BR')}</strong></article>`).join('');
+      renderBacklog(health.queue);
       $('#network-health').innerHTML = Object.entries(health.network).map(([name, value]) => `<div class="health-row"><span>${escapeHtml(name.replaceAll('_', ' ').toUpperCase())}</span><span class="${value !== 'OK' ? 'offline' : ''}">● ${escapeHtml(value)}</span></div>`).join('');
       const storage = health.storage;
       $('#storage-progress').style.width = `${storage.percent}%`;
@@ -146,6 +147,22 @@
       $('#storage-status').textContent = storage.status;
       $('#storage-status').className = `badge ${storage.status.toLowerCase()}`;
     } catch (error) { console.error(error); }
+  }
+
+  // Datas do SQLite chegam em UTC ("AAAA-MM-DD HH:MM:SS"); exibe no fuso local.
+  function formatUtc(value) {
+    return value ? new Date(`${value.replace(' ', 'T')}Z`).toLocaleString('pt-BR') : 'nenhum';
+  }
+
+  function renderBacklog(backlog) {
+    const target = $('#queue-backlog');
+    if (!backlog) { target.textContent = '—'; target.classList.remove('alert'); return; }
+    const pending = backlog.pending_count
+      ? `${backlog.pending_count} pendente(s); o mais antigo aguarda há ${backlog.oldest_pending_minutes} min`
+      : 'Nenhum envio pendente';
+    const warning = backlog.alert ? `ATENÇÃO: envio atrasado há mais de ${backlog.alert_threshold_minutes} min. Verifique a conexão com o VOXEL. · ` : '';
+    target.textContent = `${warning}${pending} · Último envio com sucesso: ${formatUtc(backlog.last_success_at)}`;
+    target.classList.toggle('alert', Boolean(backlog.alert));
   }
 
   async function loadStudies() {

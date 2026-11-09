@@ -56,7 +56,7 @@ Segredos de cloud nunca integram o frontend, o banco de configuração ou logs. 
 
 ## Resiliência e recuperação
 
-A ordem de instalação/inicialização é: preparar storage e configuração persistente; instalar/iniciar o serviço Orthanc; confirmar sua REST local; instalar/iniciar o serviço Router; confirmar `/health`; somente então liberar o Dashboard. A Engine do Router não inicia nem incorpora o processo Orthanc. A política padrão de retry é `30 s`, `120 s`, `300 s` e `900 s`, limitada a quatro tentativas. O estudo só entra em retenção elegível após `VALIDATED`; a remoção exige política explícita de retenção, e nunca ocorre na desinstalação sem escolha do operador.
+A ordem de instalação/inicialização é: preparar storage e configuração persistente; instalar/iniciar o serviço Orthanc; confirmar sua REST local; instalar/iniciar o serviço Router; confirmar `/health`; somente então liberar o Dashboard. A Engine do Router não inicia nem incorpora o processo Orthanc. A política de retry separa conectividade de rejeição: falhas de rede, timeout, associação não estabelecida ou túnel fora ficam em `RETRY` sem limite de tentativas, com espera de `30 s`, `120 s`, `300 s`, `900 s` e depois `900 s` fixo (teto de 15 min); rejeição definitiva (status de falha no C-STORE, objeto local ausente/corrompido, destino inválido) vai para `ERROR` com código. O dashboard alerta quando uma pendência passa de `queue.pending_alert_minutes` (padrão 60) e mostra o último envio com sucesso. O estudo só entra em retenção elegível após `VALIDATED`; a remoção exige política explícita de retenção, e nunca ocorre na desinstalação sem escolha do operador.
 
 ## Integrações substituíveis
 

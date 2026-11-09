@@ -229,7 +229,7 @@ def create_app(engine: RouterEngine | None = None, start_engine: bool = False) -
         allowed = {
             "system": {"equipment_name", "timezone", "language"},
             "dicom": {"ae_title", "port", "association_timeout_seconds", "network_timeout_seconds", "max_associations", "study_quiet_window_seconds", "tls_enabled"},
-            "queue": {"max_concurrent_transfers", "retry_delays_seconds", "max_attempts"},
+            "queue": {"max_concurrent_transfers", "retry_delays_seconds", "pending_alert_minutes"},
             "storage": {"retention_hours", "auto_delete", "warning_percent", "critical_percent", "emergency_percent"},
         }
         if section not in allowed or not set(payload.values).issubset(allowed[section]):

@@ -13,15 +13,17 @@ from app.cloud.connectors import CloudConnector, UnavailableCloudConnector
 from app.config.settings import Settings
 from app.dicom.scp import DicomScp
 from app.orthanc.client import OrthancClient
+from app.queue.manager import QueueManager
 
 
 class HealthMonitor:
-    def __init__(self, settings: Settings, orthanc: OrthancClient, scp: DicomScp, cloud: CloudConnector | None = None, non_dicom: Any | None = None) -> None:
+    def __init__(self, settings: Settings, orthanc: OrthancClient, scp: DicomScp, cloud: CloudConnector | None = None, non_dicom: Any | None = None, queue: QueueManager | None = None) -> None:
         self.settings = settings
         self.orthanc = orthanc
         self.scp = scp
         self.cloud = cloud or UnavailableCloudConnector()
         self.non_dicom = non_dicom
+        self.queue = queue
 
     async def snapshot(self) -> dict[str, Any]:
         orthanc = await self.orthanc.health()
@@ -39,6 +41,8 @@ class HealthMonitor:
             "cloud": {"status": cloud_status},
             "dicom": {"status": "ONLINE" if self.scp.running else "OFFLINE", "ae_title": self.scp.ae_title, "port": self.scp.port},
             "storage": storage,
+            # Atraso de envio: pendência mais antiga, alerta configurável e último envio confirmado.
+            "queue": self.queue.backlog_status() if self.queue is not None else None,
             "non_dicom": self.non_dicom.status() if self.non_dicom is not None else {"service": "OFFLINE", "directory": "ERROR", "processor": "STOPPED", "voxel_pacs": "DISCONNECTED", "stats": {}},
             "network": await self.network(),
         }
