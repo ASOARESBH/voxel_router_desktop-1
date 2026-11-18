@@ -36,8 +36,9 @@ def storage_status(settings: Settings) -> dict[str, Any]:
 
 
 class HealthMonitor:
-    def __init__(self, settings: Settings, orthanc: OrthancClient, scp: DicomScp, non_dicom: Any | None = None, queue: QueueManager | None = None) -> None:
+    def __init__(self, settings: Settings, orthanc: OrthancClient, scp: DicomScp, non_dicom: Any | None = None, queue: QueueManager | None = None, vpn: Any | None = None) -> None:
         self.settings = settings
+        self.vpn = vpn
         self.orthanc = orthanc
         self.scp = scp
         self.non_dicom = non_dicom
@@ -61,6 +62,8 @@ class HealthMonitor:
             "queue": self.queue.backlog_status() if self.queue is not None else None,
             "non_dicom": self.non_dicom.status() if self.non_dicom is not None else {"service": "OFFLINE", "directory": "ERROR", "processor": "STOPPED", "voxel_pacs": "DISCONNECTED", "stats": {}},
             "network": await self.network(),
+            # Túnel VOXEL VPN: estado do serviço do WireGuard e idade do último handshake.
+            "vpn": await asyncio.to_thread(self.vpn.status) if self.vpn is not None else None,
         }
 
     def cloud(self) -> dict[str, Any]:

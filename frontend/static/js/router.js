@@ -14,7 +14,7 @@
     QUEUED: 'NA FILA', PENDING: 'PENDENTE', SENDING: 'ENVIANDO', SENT: 'ENVIADO', VALIDATED: 'VALIDADO',
     RETRY: 'NOVA TENTATIVA', RETRYING: 'NOVA TENTATIVA', CANCELLED: 'CANCELADO', COMPLETED: 'CONCLUÍDO',
     STARTED: 'INICIADO', SUCCESS: 'SUCESSO', FAILED: 'FALHOU', FAILURE: 'FALHA', DENIED: 'NEGADO',
-    NO_TEST: 'SEM TESTE', STAGED: 'PREPARADO', CONFIGURED: 'CONFIGURADO',
+    NO_TEST: 'SEM TESTE', NO_HANDSHAKE: 'SEM HANDSHAKE', AWAITING_KIT: 'AGUARDANDO KIT', NOT_CONFIGURED: 'NÃO CONFIGURADO', WIREGUARD_MISSING: 'WIREGUARD AUSENTE', UNSUPPORTED: 'NÃO SUPORTADO', NOT_INSTALLED: 'NÃO INSTALADO', STAGED: 'PREPARADO', CONFIGURED: 'CONFIGURADO',
   };
   const statusLabel = (code) => STATUS_LABELS[String(code || '')] || String(code || '—').replaceAll('_', ' ');
 
@@ -66,10 +66,10 @@
     scrollToTop();
     $$('.page').forEach(page => page.classList.toggle('active-page', page.id === `${name}-page`));
     $$('.nav-item').forEach(button => button.classList.toggle('active', button.dataset.page === name));
-    const titles = { dashboard: ['OPERAÇÃO LOCAL', 'Dashboard'], monitoring: ['ESTUDOS RECEBIDOS', 'Monitoramento'], queue: ['STORE AND FORWARD', 'Fila de transmissão'], dicom: ['RECEPÇÃO DICOM', 'DICOM local'], modalities: ['NÓS REMOTOS', 'Modalidades'], destinations: ['TRANSMISSÃO SEGURA', 'VOXEL Cloud e destinos'], 'non-dicom': ['INTEGRAÇÃO', 'Non-DICOM Integration'], logs: ['OBSERVABILIDADE', 'Logs e auditoria'], settings: ['ADMINISTRAÇÃO', 'Configurações'] };
+    const titles = { dashboard: ['OPERAÇÃO LOCAL', 'Dashboard'], monitoring: ['ESTUDOS RECEBIDOS', 'Monitoramento'], queue: ['STORE AND FORWARD', 'Fila de transmissão'], dicom: ['RECEPÇÃO DICOM', 'DICOM local'], modalities: ['NÓS REMOTOS', 'Modalidades'], vpn: ['TÚNEL SEGURO', 'VOXEL VPN'], destinations: ['TRANSMISSÃO SEGURA', 'VOXEL Cloud e destinos'], 'non-dicom': ['INTEGRAÇÃO', 'Non-DICOM Integration'], logs: ['OBSERVABILIDADE', 'Logs e auditoria'], settings: ['ADMINISTRAÇÃO', 'Configurações'] };
     $('#page-kicker').textContent = titles[name][0];
     $('#page-title').textContent = titles[name][1];
-    ({ dashboard: loadDashboard, monitoring: loadStudies, queue: loadQueue, dicom: loadDicom, modalities: loadModalities, destinations: loadDestinations, 'non-dicom': loadNonDicom, logs: loadLogs, settings: loadSettings }[name])?.();
+    ({ dashboard: loadDashboard, monitoring: loadStudies, queue: loadQueue, dicom: loadDicom, modalities: loadModalities, vpn: loadVpn, destinations: loadDestinations, 'non-dicom': loadNonDicom, logs: loadLogs, settings: loadSettings }[name])?.();
     requestAnimationFrame(scrollToTop);
   }
 
@@ -317,6 +317,53 @@
     await loadDestinations();
   }
 
+  const VPN_HINTS = {
+    WIREGUARD_MISSING: 'Instale o WireGuard for Windows (o instalador do Router faz isso) e recarregue.',
+    NOT_CONFIGURED: 'Gere as chaves desta máquina e envie a chave pública ao VOXEL.',
+    AWAITING_KIT: 'Aguardando o kit do VOXEL. Quando receber, preencha o formulário ao lado.',
+    NO_HANDSHAKE: 'Serviço ativo, mas sem handshake: confira a saída UDP para o endpoint e se o VOXEL já cadastrou esta chave pública.',
+    OFFLINE: 'Túnel parado ou sem handshake há mais de 10 minutos.',
+    WARNING: 'Último handshake há mais de 3 minutos.',
+    ONLINE: 'Túnel ativo.',
+  };
+
+  async function loadVpn() {
+    const vpn = await api('/api/vpn');
+    state.vpn = vpn;
+    $('#vpn-public-key').textContent = vpn.public_key || '—';
+    $('#vpn-generate').hidden = Boolean(vpn.public_key);
+    $('#vpn-rotate').hidden = !vpn.public_key;
+    $('#vpn-copy').disabled = !vpn.public_key;
+    const handshake = vpn.last_handshake_at ? `${escapeHtml(vpn.last_handshake_at)} UTC (há ${vpn.handshake_age_seconds}s)` : '—';
+    $('#vpn-status').innerHTML = `<p>${badge(vpn.status)} <small>${escapeHtml(VPN_HINTS[vpn.status] || '')}</small></p><p>Serviço: ${badge(vpn.service)} · Último handshake: ${handshake}</p>` + (vpn.kit ? `<p><small>Endpoint ${escapeHtml(vpn.kit.endpoint)} · endereço ${escapeHtml(vpn.kit.address)} · destino ${escapeHtml(vpn.kit.called_ae)}@${escapeHtml(vpn.kit.destination_host)}:${vpn.kit.destination_port}</small></p>` : '');
+    if (vpn.kit) {
+      const form = $('#vpn-kit-form');
+      for (const [name, value] of Object.entries(vpn.kit)) if (form.elements[name]) form.elements[name].value = value;
+    }
+  }
+
+  function bindVpn() {
+    $('#vpn-generate').addEventListener('click', () => api('/api/vpn/keys', { method: 'POST', body: JSON.stringify({ rotate: false }) }).then(loadVpn).catch(error => alert(error.message)));
+    $('#vpn-rotate').addEventListener('click', () => {
+      if (!confirm('Trocar as chaves derruba o túnel até o VOXEL cadastrar a nova chave pública. Continuar?')) return;
+      api('/api/vpn/keys', { method: 'POST', body: JSON.stringify({ rotate: true }) }).then(loadVpn).catch(error => alert(error.message));
+    });
+    $('#vpn-copy').addEventListener('click', () => navigator.clipboard.writeText(state.vpn?.public_key || '').then(() => alert('Chave pública copiada.')));
+    $('#vpn-remove').addEventListener('click', () => {
+      if (!confirm('Remover o túnel VOXELVPN? O destino VOXEL será pausado.')) return;
+      api('/api/vpn/tunnel', { method: 'DELETE' }).then(loadVpn).catch(error => alert(error.message));
+    });
+    $('#vpn-kit-form').addEventListener('submit', event => {
+      event.preventDefault();
+      const form = new FormData(event.target);
+      const body = Object.fromEntries(form.entries());
+      for (const key of ['keepalive', 'destination_port']) body[key] = Number(body[key]);
+      api('/api/vpn/kit', { method: 'POST', body: JSON.stringify(body) })
+        .then(() => { alert('Kit aplicado. O destino VOXEL foi criado PAUSADO: execute TESTAR C-ECHO em VOXEL Cloud e destinos.'); return loadVpn(); })
+        .catch(error => alert(error.message));
+    });
+  }
+
   async function loadLogs() {
     const [logs, audit] = await Promise.all([api('/api/logs'), api('/api/audit')]);
     $('#logs-table').innerHTML = logs.length ? logs.map(row => `<tr><td>${escapeHtml(row.created_at)}</td><td>${escapeHtml(row.category)}</td><td>${badge(row.severity)}</td><td>${escapeHtml(row.code)}</td><td>${escapeHtml(row.message)}</td></tr>`).join('') : '<tr><td colspan="5" class="empty-cell">Nenhum evento registrado.</td></tr>';
@@ -409,6 +456,7 @@
     $('#add-modality').addEventListener('click',() => openModal('Adicionar modalidade', '<label>Nome<input name="name" required></label><label>Descrição<input name="description"></label><label>AE Title<input name="ae_title" maxlength="16" required></label><label>IP ou faixa CIDR<input name="host" placeholder="192.168.0.50 ou 192.168.0.0/24" required></label><label>Porta<input name="port" type="number" value="104" min="1" max="65535" required></label><label>Modalidade<input name="modality" placeholder="CT"></label><label>Fabricante<input name="manufacturer"></label><label>Localização<input name="location"></label><label class="checkbox-label"><input name="enabled" type="checkbox" checked> Ativa</label>', async values => { values.port = Number(values.port); await api('/api/modalities', { method: 'POST', body: JSON.stringify(values) }); await loadModalities(); }));
     $('#add-destination').addEventListener('click', () => openModal('Adicionar destino DICOM', '<label>Nome<input name="name" required></label><label>AE Title do destino<input name="ae_title" maxlength="16" required></label><label>IP / Host<input name="host" required></label><label>Porta<input name="port" type="number" value="104" min="1" max="65535" required></label><label>Prioridade<select name="priority"><option value="1">CRÍTICA</option><option value="2">ALTA</option><option value="3" selected>NORMAL</option><option value="4">BAIXA</option></select></label><label class="checkbox-label"><input name="tls_enabled" type="checkbox"> TLS habilitado</label><p class="helper">Só destinos DICOM (C-STORE) são suportados. O destino será criado PAUSADO; depois, use TESTAR C-ECHO e HABILITAR.</p>', async values => { values.kind = 'DICOM'; values.tls_enabled = values.tls_enabled === 'on'; values.port = Number(values.port); values.priority = Number(values.priority); await api('/api/destinations', { method: 'POST', body: JSON.stringify(values) }); await loadDestinations(); }));
     $('#settings-system').addEventListener('submit', event => { event.preventDefault(); const form = new FormData(event.target); api('/api/settings/system', { method: 'PATCH', body: JSON.stringify({ values: Object.fromEntries(form) }) }).then(() => alert('Configurações salvas.')).catch(error => alert(error.message)); });
+    bindVpn();
     $('#settings-storage').addEventListener('submit', event => { event.preventDefault(); const form = new FormData(event.target); api('/api/settings/storage', { method: 'PATCH', body: JSON.stringify({ values: { retention_hours: Number(form.get('retention_hours')), auto_delete: form.get('auto_delete') === 'on' } }) }).then(() => alert('Política de retenção salva.')).catch(error => alert(error.message)); });
     $('#change-username').addEventListener('submit', event => { event.preventDefault(); api('/api/auth/username', { method: 'PUT', body: JSON.stringify(Object.fromEntries(new FormData(event.target))) }).then(() => alert('Usuário alterado.')).catch(error => alert(error.message)); });
     $('#change-password').addEventListener('submit', event => { event.preventDefault(); api('/api/auth/change-password', { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(event.target))) }).then(() => { alert('Senha alterada; entre novamente.'); location.reload(); }).catch(error => alert(error.message)); });

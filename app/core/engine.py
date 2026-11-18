@@ -18,6 +18,7 @@ from app.orthanc.client import OrthancClient
 from app.queue.manager import QueueManager
 from app.security.secrets import SecretStoreError, WindowsSecretStore
 from app.transfer.manager import TransferManager
+from app.vpn.wireguard import WireGuardManager
 
 LOGGER = get_logger(__name__)
 
@@ -55,7 +56,8 @@ class RouterEngine:
         )
         self.transfer = TransferManager(self.database, self.settings, self.queue)
         self.non_dicom = NonDicomWorker(self.settings, self.database)
-        self.health = HealthMonitor(self.settings, self.orthanc, self.scp, non_dicom=self.non_dicom, queue=self.queue)
+        self.vpn = WireGuardManager(self.settings)
+        self.health = HealthMonitor(self.settings, self.orthanc, self.scp, non_dicom=self.non_dicom, queue=self.queue, vpn=self.vpn)
         self._stop = asyncio.Event()
         self._tasks: list[asyncio.Task[Any]] = []
 

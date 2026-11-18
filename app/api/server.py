@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import os
 import platform
 import sqlite3
@@ -23,6 +24,7 @@ from app.dicom.access import LEARNING_MAX_HOURS, normalize_ae_title, normalize_h
 from app.monitoring.network import local_ipv4_addresses
 from app.queue.manager import QueueStateError
 from app.security.secrets import SecretStoreError, WindowsSecretStore
+from app.vpn.wireguard import VpnError, VpnKit, allowed_ips, client_address, endpoint, wireguard_key
 
 LOGGER = get_logger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -105,6 +107,54 @@ class DestinationPayload(BaseModel):
         if not text or any(char.isspace() or char in "/@\\" for char in text):
             raise ValueError("Host inválido")
         return text
+
+
+class VpnKeysPayload(BaseModel):
+    rotate: bool = False
+
+
+class VpnKitPayload(BaseModel):
+    """Campos do kit VPN-only do VOXEL PACS. Não existe campo para chave privada."""
+
+    address: str = Field(min_length=7, max_length=18)
+    gateway_public_key: str = Field(min_length=44, max_length=44)
+    endpoint: str = Field(min_length=3, max_length=260)
+    allowed_ips: str = Field(default="10.200.10.1/32", min_length=9, max_length=200)
+    keepalive: int = Field(default=25, ge=10, le=120)
+    destination_host: str = Field(min_length=7, max_length=15)
+    destination_port: int = Field(ge=1, le=65535)
+    called_ae: str = Field(min_length=1, max_length=16)
+    calling_ae: str = Field(min_length=1, max_length=16)
+
+    @field_validator("address")
+    @classmethod
+    def validate_address(cls, value: str) -> str:
+        return client_address(value)
+
+    @field_validator("gateway_public_key")
+    @classmethod
+    def validate_gateway_key(cls, value: str) -> str:
+        return wireguard_key(value, "Chave pública do concentrador")
+
+    @field_validator("endpoint")
+    @classmethod
+    def validate_endpoint(cls, value: str) -> str:
+        return endpoint(value)
+
+    @field_validator("allowed_ips")
+    @classmethod
+    def validate_allowed_ips(cls, value: str) -> str:
+        return allowed_ips(value)
+
+    @field_validator("called_ae", "calling_ae")
+    @classmethod
+    def validate_ae(cls, value: str) -> str:
+        return normalize_ae_title(value)
+
+    @field_validator("destination_host")
+    @classmethod
+    def validate_destination_host(cls, value: str) -> str:
+        return str(ipaddress.IPv4Address(value.strip()))
 
 
 class QueuePriorityPayload(BaseModel):
@@ -617,6 +667,64 @@ def create_app(engine: RouterEngine | None = None, start_engine: bool = False) -
                 raise HTTPException(status.HTTP_404_NOT_FOUND, "Destino não encontrado")
             connection.execute("DELETE FROM destinations WHERE id = ?", (destination_id,))
         auth.audit(int(user["id"]), "DELETE_DESTINATION", "DESTINATION", str(destination_id), client_ip(request), "SUCCESS", destination_audit(before))
+
+    # ---------- VOXEL VPN (WireGuard) ----------
+    VPN_DESTINATION_NAME = "VOXEL PACS (VPN)"
+
+    def vpn_call(action: str, operation: Any, request: Request, user: dict[str, Any], details: str | None = None) -> Any:
+        try:
+            result = operation()
+        except (VpnError, SecretStoreError) as exc:
+            auth.audit(int(user["id"]), action, "VPN", "VOXELVPN", client_ip(request), "FAILURE", str(exc))
+            raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+        auth.audit(int(user["id"]), action, "VPN", "VOXELVPN", client_ip(request), "SUCCESS", details)
+        return result
+
+    @app.get("/api/vpn")
+    async def vpn_status(_: dict[str, Any] = Depends(configured_user)) -> dict[str, Any]:
+        return current_engine.vpn.status()
+
+    @app.post("/api/vpn/keys")
+    async def vpn_keys(payload: VpnKeysPayload, request: Request, user: dict[str, Any] = Depends(configured_user)) -> dict[str, Any]:
+        public = vpn_call("GENERATE_VPN_KEYS", lambda: current_engine.vpn.generate_keys(rotate=payload.rotate), request, user, f"rotate={int(payload.rotate)}")
+        return {"public_key": public}
+
+    @app.post("/api/vpn/kit")
+    async def vpn_kit(payload: VpnKitPayload, request: Request, user: dict[str, Any] = Depends(configured_user)) -> dict[str, Any]:
+        """Aplica o kit: túnel protegido + destino DICOM VOXEL criado/atualizado sempre PAUSADO."""
+        values = payload.model_dump()
+        routes = [ipaddress.IPv4Network(part.strip()) for part in values["allowed_ips"].split(",")]
+        if not any(ipaddress.IPv4Address(values["destination_host"]) in route for route in routes):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "O host DICOM do VOXEL precisa estar dentro do AllowedIPs do túnel")
+        kit = VpnKit(**values)
+        vpn_call("APPLY_VPN_KIT", lambda: current_engine.vpn.apply_kit(kit), request, user, f"endpoint={kit.endpoint};address={kit.address};destino={kit.destination_host}:{kit.destination_port};called={kit.called_ae};calling={kit.calling_ae}")
+        # O Calling AE cadastrado na célula vira o AE de saída desta instalação.
+        settings.update("dicom", {"outbound_ae_title": kit.calling_ae})
+        with database.transaction() as connection:
+            row = connection.execute("SELECT id FROM destinations WHERE name = ?", (VPN_DESTINATION_NAME,)).fetchone()
+            if row is None:
+                cursor = connection.execute(
+                    "INSERT INTO destinations(name, kind, ae_title, host, port, tls_enabled, priority, enabled) VALUES (?, 'DICOM', ?, ?, ?, 0, 1, 0)",
+                    (VPN_DESTINATION_NAME, kit.called_ae, kit.destination_host, kit.destination_port),
+                )
+                destination_id = int(cursor.lastrowid)
+            else:
+                destination_id = int(row["id"])
+                # Kit novo = destino pausado e C-ECHO obrigatório de novo, mesmo que os valores não mudem.
+                connection.execute(
+                    """UPDATE destinations SET kind='DICOM', ae_title=?, host=?, port=?, endpoint=NULL, tls_enabled=0, enabled=0,
+                       echo_status=NULL, echo_at=NULL, echo_error=NULL, echo_target=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?""",
+                    (kit.called_ae, kit.destination_host, kit.destination_port, destination_id),
+                )
+            after = connection.execute("SELECT * FROM destinations WHERE id = ?", (destination_id,)).fetchone()
+        auth.audit(int(user["id"]), "UPDATE_DESTINATION", "DESTINATION", str(destination_id), client_ip(request), "SUCCESS", f"origem=kit_vpn;{destination_audit(after)}")
+        return {"vpn": current_engine.vpn.status(), "destination": destination_view(after)}
+
+    @app.delete("/api/vpn/tunnel", status_code=status.HTTP_204_NO_CONTENT)
+    async def vpn_remove(request: Request, user: dict[str, Any] = Depends(configured_user)) -> None:
+        vpn_call("REMOVE_VPN_TUNNEL", current_engine.vpn.remove_tunnel, request, user)
+        with database.transaction() as connection:
+            connection.execute("UPDATE destinations SET enabled = 0, updated_at = CURRENT_TIMESTAMP WHERE name = ?", (VPN_DESTINATION_NAME,))
 
     @app.get("/api/studies")
     async def list_studies(limit: int = 200, _: dict[str, Any] = Depends(configured_user)) -> list[dict[str, Any]]:

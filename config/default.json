@@ -80,5 +80,9 @@
     "router_id": "",
     "timeout_seconds": 15,
     "tls_enabled": true
+  },
+  "vpn": {
+    "public_key": "",
+    "kit": null
   }
 }
