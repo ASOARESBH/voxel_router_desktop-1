@@ -19,6 +19,7 @@ guarda no Orthanc local e encaminha para a célula dedicada do VOXEL PACS por t�
 | Envio C-STORE (SCU) | destino/célula VOXEL | `app/transfer/manager.py`, `app/cloud/connectors.py` |
 | UI/API administrativa | `127.0.0.1:8765` | `app/api/server.py`, `frontend/` |
 | Segredos | DPAPI (Windows) / Fernet só em dev | `app/security/secrets.py` |
+| VOXEL VPN (WireGuard) | serviço `WireGuardTunnel$VOXELVPN`, `ProgramData\VOXEL\Router\vpn` | `app/vpn/wireguard.py` |
 | Serviços Windows | `VOXELRouter`, `VOXELOrthanc` | `app/service_main.py`, `app/orthanc/service_main.py` |
 | Instalador | Inno Setup | `installer/VOXEL_ROUTER_SETUP.iss`, `scripts/build_windows.ps1` |
 

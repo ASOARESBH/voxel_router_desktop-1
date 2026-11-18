@@ -110,7 +110,14 @@ A atualização e a desinstalação normal preservam `config`, `queue`, `logs`, 
 
 ## Notas de versão
 
-### Gateway VPN (em desenvolvimento)
+### 1.1.0 — Gateway VPN
+
+- **VOXEL VPN (WireGuard).** Nova página para gerar as chaves na máquina (a privada nunca sai dela), importar o kit VPN-only do VOXEL PACS e subir o túnel `VOXELVPN` como serviço do Windows. Mostra serviço e idade do último handshake. Importar o kit cria/atualiza o destino `VOXEL PACS (VPN)` sempre PAUSADO e define o AE de saída. Roteiro completo em `docs/homologacao-H1-H5.md`.
+- **Instalador** inclui o WireGuard for Windows oficial (instalado só se ausente, mantido na desinstalação). O build exige SHA-256 do Orthanc e do MSI do WireGuard e a assinatura Authenticode do MSI.
+- **Retenção** (desligada por padrão) remove só estudos VALIDATED além do prazo, no Orthanc (REST) e no Router; falha no Orthanc mantém as duas cópias.
+- **Série tardia**: instâncias novas de um estudo já entregue reabrem o estudo e ele é reenviado (antes ficavam só no Router).
+- **Disco em emergência** (95% padrão): o SCP responde "sem recursos" (0xA700) e a modalidade reenvia depois; o Dashboard avisa.
+- `scripts/send_synthetic_study.py` envia um estudo sintético para testar a recepção.
 
 - **Mudança de comportamento: o SCP só aceita C-STORE de modalidades cadastradas.** É preciso cadastrar o Calling AE e o IP (ou faixa CIDR de /16 ou mais específica) e deixar a modalidade habilitada. Nomes de host não são aceitos no cadastro. Sem cadastro, a associação é recusada antes de qualquer gravação. C-ECHO continua respondendo a qualquer origem, para diagnóstico.
 - A página **Modalidades** mostra as últimas 50 recusas, agregadas, com o botão **CADASTRAR**. O modo aprendizado (até 24 h) também registra C-ECHO de origens desconhecidas. Nenhum dos dois libera envio automaticamente.

@@ -11,6 +11,7 @@ Este guia é destinado ao time de TI da VOXEL. A implantação requer estação 
 | Rede DICOM | Modalidades alcançam o Router em `4242/TCP`. A regra de firewall vale nos perfis Domínio e Privada; com a rede da clínica marcada como Pública, as modalidades não conseguem enviar (o diagnóstico avisa). O Orthanc não escuta DICOM. |
 | Rede cloud | O Router alcança exclusivamente os endpoints/destinos aprovados; TLS e certificados são homologados quando aplicável. |
 | Orthanc | Binário e plugins homologados estão incluídos no instalador; não é necessária instalação manual. |
+| VOXEL VPN | Saída UDP liberada para o endpoint do kit VOXEL. O WireGuard for Windows oficial vem no instalador (instalado só se ausente). |
 | Segurança | Senha de bootstrap é fornecida por canal autorizado; nunca por ticket, script versionado ou log. |
 
 ## Instalador único
@@ -46,6 +47,10 @@ Remove-Item Env:VOXEL_ROUTER_BOOTSTRAP_PASSWORD
 ## Primeira configuração
 
 Após a saúde do Router ser aprovada, abra [http://127.0.0.1:8765](http://127.0.0.1:8765). Na primeira abertura, a interface exibe somente o provisionamento local. Informe `voxeladmin` ou o usuário de administração aprovado e a senha de bootstrap. O primeiro login exige a troca imediata da senha; senhas são protegidas por Argon2id e nunca são gravadas em texto puro.
+
+## VOXEL VPN
+
+Depois da primeira configuração, abra **VOXEL VPN**: gere as chaves, envie só a chave pública ao VOXEL, importe o kit recebido e aguarde o status ATIVO. Em seguida execute **TESTAR C-ECHO** no destino `VOXEL PACS (VPN)` antes de habilitá-lo. O túnel roda como serviço `WireGuardTunnel$VOXELVPN` e o arquivo `ProgramData\VOXEL\Router\vpn\VOXELVPN.conf` só é legível por SYSTEM e Administradores. Roteiro de homologação: `docs/homologacao-H1-H5.md`.
 
 ## Serviços, portas e dados
 
