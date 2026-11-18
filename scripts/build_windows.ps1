@@ -19,7 +19,10 @@ Set-Location $Root
 function Invoke-Checked {
     param([Parameter(Mandatory = $true)][string]$Step, [Parameter(Mandatory = $true)][scriptblock]$Command)
     Write-Host "==> $Step"
-    & $Command
+    # Avisos no stderr (pip, PyInstaller) não podem abortar o build: só o exit code decide.
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { & $Command 2>&1 | ForEach-Object { "$_" } | Out-Host } finally { $ErrorActionPreference = $previous }
     if ($LASTEXITCODE -ne 0) { throw "$Step falhou (exit code $LASTEXITCODE)" }
 }
 
@@ -47,17 +50,21 @@ Write-Host "WireGuard MSI assinado por: $($signature.SignerCertificate.Subject)"
 Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path dist | Out-Null
 
-Invoke-Checked 'Atualizar pip' { py -3.12 -m pip install --upgrade pip }
-Invoke-Checked 'Instalar dependências (constraints exatas)' { py -3.12 -m pip install -c requirements-build.txt . pyinstaller pillow }
-Invoke-Checked 'Registrar dependências efetivas' { py -3.12 -m pip freeze | Out-File -Encoding utf8 dist\build-freeze.txt }
-Invoke-Checked 'Gerar ícones e imagens' { py -3.12 scripts\generate_assets.py }
+# Ambiente isolado do build (não mexe no Python global da máquina).
+$Venv = Join-Path $Root '.venv-build'
+if (-not (Test-Path (Join-Path $Venv 'Scripts\python.exe'))) { Invoke-Checked 'Criar ambiente .venv-build' { py -3.12 -m venv $Venv } }
+$Py = Join-Path $Venv 'Scripts\python.exe'
+Invoke-Checked 'Atualizar pip' { & $Py -m pip install --upgrade pip }
+Invoke-Checked 'Instalar dependências (constraints exatas)' { & $Py -m pip install -c requirements-build.txt . pyinstaller pillow }
+Invoke-Checked 'Registrar dependências efetivas' { & $Py -m pip freeze | Out-File -Encoding utf8 dist\build-freeze.txt }
+Invoke-Checked 'Gerar ícones e imagens' { & $Py scripts\generate_assets.py }
 
 # O orthanc.json e o segredo interno são criados no computador de destino, em ProgramData,
 # antes de registrar/iniciar os serviços. Nunca gerar credenciais de produção no ambiente de build.
-Invoke-Checked 'PyInstaller VOXELRouter' { py -3.12 -m PyInstaller --noconfirm --clean --name VOXELRouter --icon frontend\static\img\router.ico --add-data "frontend;frontend" --add-data "config;config" app\main.py }
-Invoke-Checked 'PyInstaller VOXELRouterService' { py -3.12 -m PyInstaller --noconfirm --clean --name VOXELRouterService --icon frontend\static\img\router.ico --add-data "frontend;frontend" --add-data "config;config" app\service_main.py }
-Invoke-Checked 'PyInstaller VOXELOrthancService' { py -3.12 -m PyInstaller --noconfirm --clean --name VOXELOrthancService --icon frontend\static\img\router.ico --add-data "config;config" app\orthanc\service_main.py }
-Invoke-Checked 'PyInstaller VOXELDiagnostics' { py -3.12 -m PyInstaller --noconfirm --clean --name VOXELDiagnostics --icon frontend\static\img\router.ico --add-data "config;config" scripts\diagnose_install.py }
+Invoke-Checked 'PyInstaller VOXELRouter' { & $Py -m PyInstaller --noconfirm --clean --name VOXELRouter --icon frontend\static\img\router.ico --add-data "frontend;frontend" --add-data "config;config" app\main.py }
+Invoke-Checked 'PyInstaller VOXELRouterService' { & $Py -m PyInstaller --noconfirm --clean --name VOXELRouterService --icon frontend\static\img\router.ico --add-data "frontend;frontend" --add-data "config;config" app\service_main.py }
+Invoke-Checked 'PyInstaller VOXELOrthancService' { & $Py -m PyInstaller --noconfirm --clean --name VOXELOrthancService --icon frontend\static\img\router.ico --add-data "config;config" app\orthanc\service_main.py }
+Invoke-Checked 'PyInstaller VOXELDiagnostics' { & $Py -m PyInstaller --noconfirm --clean --name VOXELDiagnostics --icon frontend\static\img\router.ico --add-data "config;config" scripts\diagnose_install.py }
 
 if ($SkipInstaller) { Write-Host 'Instalador não gerado (-SkipInstaller).'; exit 0 }
 

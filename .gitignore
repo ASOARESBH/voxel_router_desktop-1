@@ -37,3 +37,9 @@ vendor/orthanc/
 
 # WireGuard for Windows (MSI oficial homologado, fornecido no ambiente de build)
 vendor/wireguard/
+
+# Build/teste local
+.venv-build/
+.venv-test/
+logs-local/
+vendor/HASHES-homologacao.txt
