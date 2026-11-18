@@ -34,3 +34,6 @@ Thumbs.db
 
 # Orthanc vendor binaries (provisioned only in signed build pipeline)
 vendor/orthanc/
+
+# WireGuard for Windows (MSI oficial homologado, fornecido no ambiente de build)
+vendor/wireguard/

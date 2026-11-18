@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.auth.service import AccountLockedError, AuthenticationError, AuthenticationService
 from app.cloud.connectors import CloudConnectorError, echo_target, echo_verified, outbound_ae_title
+from app.config.settings import APP_VERSION
 from app.core.engine import RouterEngine
 from app.core.logging import get_logger
 from app.dicom.access import LEARNING_MAX_HOURS, normalize_ae_title, normalize_host_network
@@ -187,7 +188,7 @@ def create_app(engine: RouterEngine | None = None, start_engine: bool = False) -
         if start_engine:
             await current_engine.stop()
 
-    app = FastAPI(title="VOXEL Router Local API", version="1.0.0", docs_url=None, redoc_url=None, lifespan=lifespan)
+    app = FastAPI(title="VOXEL Router Local API", version=APP_VERSION, docs_url=None, redoc_url=None, lifespan=lifespan)
     app.state.engine = current_engine
     app.state.database = database
     app.state.settings = settings
@@ -300,7 +301,7 @@ def create_app(engine: RouterEngine | None = None, start_engine: bool = False) -
     @app.get("/api/system")
     async def system(_: dict[str, Any] = Depends(configured_user)) -> dict[str, Any]:
         health_data = await current_engine.health.snapshot()
-        return {"version": "1.0.0", "router_id": settings.get("system", "router_id"), "queue": current_engine.queue.stats(), "health": health_data}
+        return {"version": APP_VERSION, "router_id": settings.get("system", "router_id"), "queue": current_engine.queue.stats(), "health": health_data}
 
     @app.get("/api/settings/{section}")
     async def get_settings(section: str, _: dict[str, Any] = Depends(configured_user)) -> dict[str, Any]:

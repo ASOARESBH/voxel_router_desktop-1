@@ -1,7 +1,10 @@
-; VOXEL ROUTER DESKTOP — instalador único Windows (Inno Setup 6)
-; Pré-requisito de build: vendor\orthanc\Orthanc.exe e plugins homologados.
+﻿; VOXEL ROUTER DESKTOP — instalador único Windows (Inno Setup 6)
+; Pré-requisitos de build: vendor\orthanc\Orthanc.exe (+ plugins) e vendor\wireguard\wireguard-installer.msi
+; homologados, conferidos por SHA-256 (e Authenticode no MSI) em scripts\build_windows.ps1.
 #define AppName "VOXEL Router"
-#define AppVersion "1.0.0"
+#ifndef AppVersion
+  #define AppVersion "1.1.0"
+#endif
 #define AppPublisher "VOXEL"
 #define RouterExeName "VOXELRouter.exe"
 #define RouterServiceExeName "VOXELRouterService.exe"
@@ -43,6 +46,8 @@ Source: "..\dist\VOXELDiagnostics\*"; DestDir: "{app}"; Flags: recursesubdirs ig
 Source: "..\vendor\orthanc\*"; DestDir: "{app}\orthanc"; Flags: recursesubdirs ignoreversion; Check: not OrthancInstallationWasValid
 Source: "..\config\default.json"; DestDir: "{commonappdata}\VOXEL\Router\config"; DestName: "router.json"; Flags: onlyifdoesntexist
 Source: "..\frontend\static\img\router.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
+; WireGuard for Windows oficial: instalado só se ainda não existir; nunca removido na desinstalação.
+Source: "..\vendor\wireguard\wireguard-installer.msi"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
 [Dirs]
 Name: "{commonappdata}\VOXEL\Router\config"
@@ -56,6 +61,7 @@ Name: "{commonappdata}\VOXEL\Router\orthanc\database"
 Name: "{commonappdata}\VOXEL\Router\certificates"
 Name: "{commonappdata}\VOXEL\Router\cache"
 Name: "{commonappdata}\VOXEL\Router\backup"
+Name: "{commonappdata}\VOXEL\Router\vpn"
 
 [Icons]
 Name: "{group}\VOXEL Router"; Filename: "http://127.0.0.1:8765"; IconFilename: "{app}\assets\router.ico"
@@ -171,6 +177,11 @@ begin
   end;
 end;
 
+function WireGuardInstalled(): Boolean;
+begin
+  Result := FileExists(ExpandConstant('{commonpf64}\WireGuard\wireguard.exe')) and FileExists(ExpandConstant('{commonpf64}\WireGuard\wg.exe'));
+end;
+
 procedure StopServiceIfInstalled(const ServiceName: String);
 begin
   if ServiceExists(ServiceName) then begin
@@ -180,6 +191,7 @@ end;
 
 procedure LogExistingInstallation();
 begin
+  Log('Detecção WireGuard: ' + BoolText(WireGuardInstalled()));
   Log('Detecção Router: ' + BoolText(FileExists(ExpandConstant('{app}\{#RouterExeName}'))));
   Log('Detecção Orthanc: ' + BoolText(FileExists(ExpandConstant('{app}\orthanc\Orthanc.exe'))));
   Log('Detecção configuração: ' + BoolText(FileExists(ExpandConstant('{commonappdata}\VOXEL\Router\config\orthanc.json'))));
@@ -251,6 +263,20 @@ begin
       exit;
     end;
 
+    { WireGuard for Windows (túnel VOXEL VPN). Instala silenciosamente só se ausente; o túnel em si é
+      configurado depois, pela página VOXEL VPN do Router, com o kit do VOXEL PACS. }
+    if not WireGuardInstalled() then begin
+      if not RunCritical(ExpandConstant('{sys}\msiexec.exe'), '/i "' + ExpandConstant('{tmp}\wireguard-installer.msi') + '" /qn /norestart DO_NOT_LAUNCH=1', 'Instalar WireGuard for Windows') then begin
+        SetInstallationIncomplete();
+        exit;
+      end;
+    end;
+    if not WireGuardInstalled() then begin
+      Log('WireGuard não encontrado após a instalação.');
+      SetInstallationIncomplete();
+      exit;
+    end;
+
     if not ServiceExists('{#RouterServiceName}') then begin
       if not RunCritical(ExpandConstant('{app}\{#RouterServiceExeName}'), '--startup auto install', 'Instalar serviço VOXEL Router') then begin
         SetInstallationIncomplete();
@@ -290,3 +316,15 @@ end;
 
 { Nenhum diretório em ProgramData é removido na desinstalação normal. Estudos DICOM, índices,
   fila, logs e configurações permanecem disponíveis para atualização, recuperação ou rollback. }
+
+{ Desinstalação: o WireGuard e outros túneis da máquina ficam. Só o túnel VOXELVPN é removido, e só se
+  o operador confirmar (em desinstalação silenciosa ele é mantido). }
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  ResultCode: Integer;
+begin
+  if (CurUninstallStep = usUninstall) and ServiceExists('WireGuardTunnel$VOXELVPN') and not UninstallSilent() then begin
+    if MsgBox('Remover também o túnel VOXEL VPN (VOXELVPN)? O WireGuard continuará instalado.', mbConfirmation, MB_YESNO) = IDYES then
+      Exec(ExpandConstant('{commonpf64}\WireGuard\wireguard.exe'), '/uninstalltunnelservice VOXELVPN', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  end;
+end;
