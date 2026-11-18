@@ -86,8 +86,12 @@ class QueueManager:
             added = 0
             for study in studies:
                 for destination in destinations:
+                    # Item já entregue volta à fila quando o estudo recebeu instâncias depois do envio.
                     cursor = connection.execute(
-                        "INSERT OR IGNORE INTO queue(study_id, destination_id, priority, status) VALUES (?, ?, ?, 'QUEUED')",
+                        """INSERT INTO queue(study_id, destination_id, priority, status) VALUES (?, ?, ?, 'QUEUED')
+                           ON CONFLICT(study_id, destination_id) DO UPDATE SET status = 'QUEUED', attempt_count = 0,
+                           next_attempt_at = CURRENT_TIMESTAMP, completed_at = NULL, locked_at = NULL, updated_at = CURRENT_TIMESTAMP
+                           WHERE queue.status = 'SENT'""",
                         (study["id"], destination["id"], destination["priority"]),
                     )
                     added += max(cursor.rowcount, 0)
@@ -113,8 +117,13 @@ class QueueManager:
 
     def complete(self, item: QueueItem, bytes_sent: int, instances_sent: int, remote_reference: str | None = None, validation_reference: str | None = None) -> None:
         with self.database.transaction() as connection:
+            # Instância chegada durante o envio: o estudo tem mais objetos do que os enviados e volta a RECEIVED.
+            connection.execute(
+                """UPDATE studies SET status = CASE WHEN (SELECT COUNT(*) FROM instances WHERE study_id = ?) > ? THEN 'RECEIVED' ELSE 'VALIDATED' END,
+                   sent_at = CURRENT_TIMESTAMP, validated_at = CURRENT_TIMESTAMP, last_error_code = NULL, last_error_message = NULL WHERE id = ?""",
+                (item.study_id, instances_sent, item.study_id),
+            )
             connection.execute("UPDATE queue SET status = 'SENT', completed_at = CURRENT_TIMESTAMP, locked_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (item.id,))
-            connection.execute("UPDATE studies SET status = 'VALIDATED', sent_at = CURRENT_TIMESTAMP, validated_at = CURRENT_TIMESTAMP, last_error_code = NULL, last_error_message = NULL WHERE id = ?", (item.study_id,))
             connection.execute("UPDATE queue_attempts SET finished_at = CURRENT_TIMESTAMP, success = 1 WHERE queue_id = ? AND attempt_number = ?", (item.id, item.attempt_count))
             connection.execute("INSERT INTO transfers(queue_id, completed_at, bytes_sent, instances_sent, status, remote_reference, validation_reference) VALUES (?, CURRENT_TIMESTAMP, ?, ?, 'SUCCESS', ?, ?)", (item.id, bytes_sent, instances_sent, remote_reference, validation_reference))
         LOGGER.info("queue_item_completed", queue_id=item.id, bytes_sent=bytes_sent)

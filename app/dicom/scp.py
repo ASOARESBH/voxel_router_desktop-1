@@ -23,6 +23,8 @@ REJECT_CALLING_AE_NOT_RECOGNISED = (0x01, 0x01, 0x03)
 REJECT_CALLED_AE_NOT_RECOGNISED = (0x01, 0x01, 0x07)
 # Status C-STORE "Refused: Not authorized".
 STATUS_NOT_AUTHORIZED = 0x0124
+# Status C-STORE "Refused: Out of resources": a modalidade mantém o objeto e tenta de novo.
+STATUS_OUT_OF_RESOURCES = 0xA700
 # Tempo para o PDU de rejeição chegar ao requisitante antes de o socket ser fechado.
 REJECT_FLUSH_SECONDS = 0.1
 
@@ -37,6 +39,7 @@ class DicomScp:
         orthanc_store: Callable[[bytes], str | None] | None = None,
         access: DicomAccessControl | None = None,
         bind_host: str = "0.0.0.0",
+        accept_storage: Callable[[], bool] | None = None,
     ) -> None:
         self.ingestor = ingestor
         self.ae_title = ae_title
@@ -46,6 +49,7 @@ class DicomScp:
         self.max_associations = max_associations
         self.orthanc_store = orthanc_store
         self.access = access or DicomAccessControl(ingestor.database)
+        self.accept_storage = accept_storage
         self._server: Any | None = None
         self._lock = threading.Lock()
 
@@ -132,6 +136,9 @@ class DicomScp:
         if not self.access.is_allowed(str(requestor.ae_title), str(requestor.address)):
             LOGGER.warning("dicom_c_store_not_authorized", calling_ae=str(requestor.ae_title).strip(), source_ip=str(requestor.address))
             return STATUS_NOT_AUTHORIZED
+        if self.accept_storage is not None and not self.accept_storage():
+            LOGGER.warning("dicom_c_store_refused_disk_emergency")
+            return STATUS_OUT_OF_RESOURCES
         try:
             dataset = event.dataset
             dataset.file_meta = event.file_meta
@@ -147,7 +154,7 @@ class DicomScp:
             return 0xC210
         except Exception:
             LOGGER.exception("dicom_c_store_failure")
-            return 0xA700
+            return STATUS_OUT_OF_RESOURCES
 
     @staticmethod
     def _handle_accepted(event: Any) -> None:

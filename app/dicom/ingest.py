@@ -68,7 +68,8 @@ class DicomIngestor:
                 study_id = int(cursor.lastrowid)
             else:
                 study_id = int(study["id"])
-                connection.execute("UPDATE studies SET last_instance_at = ?, status = CASE WHEN status IN ('SENT','VALIDATED') THEN status ELSE 'RECEIVED' END WHERE id = ?", (now, study_id))
+                # Instância nova sempre volta o estudo a RECEIVED, inclusive se já entregue (série tardia é reenviada).
+                connection.execute("UPDATE studies SET last_instance_at = ?, status = 'RECEIVED' WHERE id = ?", (now, study_id))
 
             series = connection.execute("SELECT id FROM series WHERE series_instance_uid = ?", (series_uid,)).fetchone()
             if series is None:

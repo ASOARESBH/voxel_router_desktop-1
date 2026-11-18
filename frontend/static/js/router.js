@@ -161,7 +161,7 @@
       const storage = health.storage;
       $('#storage-progress').style.width = `${storage.percent}%`;
       $('#storage-value').textContent = `${storage.percent.toFixed(1)}%`;
-      $('#storage-detail').textContent = `${formatBytes(storage.used_bytes)} utilizados de ${formatBytes(storage.total_bytes)} · ${formatBytes(storage.free_bytes)} disponíveis`;
+      $('#storage-detail').textContent = `${formatBytes(storage.used_bytes)} utilizados de ${formatBytes(storage.total_bytes)} · ${formatBytes(storage.free_bytes)} disponíveis` + (storage.accepting_c_store === false ? ' · RECEPÇÃO SUSPENSA: as modalidades reenviarão quando houver espaço' : '');
       $('#storage-status').textContent = statusLabel(storage.status);
       $('#storage-status').className = `badge ${storage.status.toLowerCase()}`;
     } catch (error) { console.error(error); }

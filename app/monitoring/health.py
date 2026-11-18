@@ -20,6 +20,21 @@ from app.queue.manager import QueueManager
 CLOUD_RECENT_HOURS = 24
 
 
+def storage_status(settings: Settings) -> dict[str, Any]:
+    """Uso do disco onde ficam os objetos do Router, com o nível de alerta configurado."""
+    usage = psutil.disk_usage(Path(settings.paths.storage).anchor or "/")
+    percent = float(usage.percent)
+    if percent >= float(settings.get("storage", "emergency_percent", default=95)):
+        status = "EMERGENCY"
+    elif percent >= float(settings.get("storage", "critical_percent", default=85)):
+        status = "CRITICAL"
+    elif percent >= float(settings.get("storage", "warning_percent", default=70)):
+        status = "WARNING"
+    else:
+        status = "OK"
+    return {"status": status, "percent": percent, "total_bytes": usage.total, "used_bytes": usage.used, "free_bytes": usage.free}
+
+
 class HealthMonitor:
     def __init__(self, settings: Settings, orthanc: OrthancClient, scp: DicomScp, non_dicom: Any | None = None, queue: QueueManager | None = None) -> None:
         self.settings = settings
@@ -99,14 +114,7 @@ class HealthMonitor:
         return {"local_network": "OK" if psutil.net_if_stats() else "OFFLINE", "dns": dns, "internet": internet}
 
     def storage(self) -> dict[str, Any]:
-        usage = psutil.disk_usage(Path(self.settings.paths.storage).anchor or "/")
-        percent = float(usage.percent)
-        if percent >= float(self.settings.get("storage", "emergency_percent", default=95)):
-            status = "EMERGENCY"
-        elif percent >= float(self.settings.get("storage", "critical_percent", default=85)):
-            status = "CRITICAL"
-        elif percent >= float(self.settings.get("storage", "warning_percent", default=70)):
-            status = "WARNING"
-        else:
-            status = "OK"
-        return {"status": status, "percent": percent, "total_bytes": usage.total, "used_bytes": usage.used, "free_bytes": usage.free}
+        status = storage_status(self.settings)
+        # Em EMERGENCY o SCP recusa C-STORE (0xA700) para a modalidade reenviar depois.
+        status["accepting_c_store"] = status["status"] != "EMERGENCY"
+        return status

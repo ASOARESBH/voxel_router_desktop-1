@@ -7,7 +7,7 @@ import os
 import socket
 import subprocess
 from collections.abc import Callable
-from pathlib import Path
+from pathlib import PureWindowsPath
 
 import psutil
 
@@ -61,7 +61,7 @@ def local_ipv4_addresses() -> list[str]:
 
 
 # Perfil de rede do Windows: a regra de firewall da 4242 vale só em Domínio/Privada, nunca em Pública.
-POWERSHELL = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+POWERSHELL = PureWindowsPath(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
 PROFILE_COMMAND = "Get-NetConnectionProfile | ForEach-Object { $_.InterfaceAlias + '|' + $_.NetworkCategory }"
 PROFILE_TIMEOUT_SECONDS = 15
 
