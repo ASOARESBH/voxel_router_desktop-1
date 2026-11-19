@@ -140,12 +140,31 @@ begin
     ServiceExists('{#OrthancServiceName}');
 end;
 
+{ Porta TCP já escutando nesta máquina (netstat + findstr; ResultCode 0 = encontrou). }
+function PortInUse(const Port: String): Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := Exec(ExpandConstant('{cmd}'), '/C netstat -ano -p TCP | findstr /R /C:":' + Port + ' .*LISTENING"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
+  Log('Porta ' + Port + ' em uso: ' + BoolText(Result));
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
+  Result := '';
+  { Clínicas podem já ter outro PACS/Orthanc na máquina. Instalação nova não sobe em cima de portas
+    ocupadas (o Router e o Orthanc local falhariam ao iniciar). Em atualização as portas são nossas. }
+  if not ServiceExists('{#RouterServiceName}') and PortInUse('4242') then begin
+    Result := 'A porta 4242/TCP (recepção DICOM do VOXEL Router) já está em uso por outro programa nesta máquina (outro PACS ou Orthanc?). Pare esse serviço ou use outra máquina e execute o instalador de novo.';
+    exit;
+  end;
+  if not ServiceExists('{#OrthancServiceName}') and PortInUse('8042') then begin
+    Result := 'A porta 8042/TCP (Orthanc local do VOXEL Router) já está em uso por outro programa nesta máquina (outro Orthanc?). Pare esse serviço ou use outra máquina e execute o instalador de novo.';
+    exit;
+  end;
   OrthancInstallationWasValid := OrthancInstallationIsValid();
   if OrthancInstallationWasValid then
     Log('Orthanc válido detectado: binário, storage e senha interna serão preservados; orthanc.json é regenerado.');
-  Result := '';
 end;
 
 function RunCritical(const Filename, Parameters, Component: String): Boolean;

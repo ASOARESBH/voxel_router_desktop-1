@@ -25,7 +25,20 @@ O script:
 
 Log completo: `logs-local\build-local-<data>.log`. Os hashes aprovados ficam em `vendor\HASHES-homologacao.txt`.
 
-## 2. Instalar
+## 2. Liberar as portas (máquina com outro Orthanc)
+
+O instalador recusa instalação nova se a `4242` ou a `8042` já estiverem ocupadas. No server-dell o serviço
+**Orthanc** (instalação própria) escuta nas duas. Para o teste, em PowerShell **como administrador**:
+
+```powershell
+sc.exe stop Orthanc
+sc.exe config Orthanc start= demand   # não volta sozinho no reboot do teste de resiliência
+```
+
+Ao terminar os testes (passo 8), devolva: `sc.exe config Orthanc start= auto; sc.exe start Orthanc`
+(depois de desinstalar o VOXEL Router ou parar `VOXELRouter`/`VOXELOrthanc`, que usam as mesmas portas).
+
+## 2b. Instalar
 
 Clique com o botão direito em `dist\VOXEL_ROUTER_SETUP.exe` → Executar como administrador
 (o SmartScreen avisa porque o setup não é assinado: "Mais informações" → "Executar assim mesmo").
@@ -45,10 +58,10 @@ Num PowerShell separado, deixe rodando:
 
 ```powershell
 cd C:\xampp\htdocs\dashboard\voxel_router_desktop-1
-.\.venv-test\Scripts\python.exe scripts\fake_voxel_destination.py --port 11112 --ae VOXEL_TESTE --calling-ae VXTESTE_RT
+.\.venv-test\Scripts\python.exe scripts\fake_voxel_destination.py --port 11113 --ae VOXEL_TESTE --calling-ae VXTESTE_RT
 ```
 
-No Router: **VOXEL Cloud e destinos → ADICIONAR DESTINO** → DICOM, AE `VOXEL_TESTE`, host `127.0.0.1`, porta `11112`
+No Router: **VOXEL Cloud e destinos → ADICIONAR DESTINO** → DICOM, AE `VOXEL_TESTE`, host `127.0.0.1`, porta `11113` (a 11112 já está ocupada nesta máquina)
 → nasce PAUSADO → **TESTAR C-ECHO** (a janela do destino mostra "C-ECHO recebido") → **HABILITAR**.
 
 ## 5. Envio fim a fim
