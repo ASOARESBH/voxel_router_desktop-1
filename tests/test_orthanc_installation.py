@@ -165,7 +165,10 @@ def test_installer_firewall_opens_only_4242_on_domain_private_and_removes_4243()
     assert "profile=public" not in installer.lower() and "profile=any" not in installer.lower()
     assert "localport=4243" not in installer
     # Regra legada removida na instalação/atualização e na desinstalação; netsh por caminho absoluto.
-    assert installer.count('delete rule name=\\"VOXEL Orthanc DICOM\\"') == 2
+    assert installer.count('delete rule name="VOXEL Orthanc DICOM"') == 1  # [Code]: string Pascal
+    assert installer.count('delete rule name=""VOXEL Orthanc DICOM""') == 1  # [UninstallRun]: aspas do Inno
+    # \\" não é escape válido no Inno nem em string Pascal (quebrou o ISCC no primeiro build real).
+    assert '\\"' not in installer
     assert "'netsh.exe'" not in installer and '"netsh.exe"' not in installer
     # orthanc.json é regenerado também em atualizações e o Orthanc reiniciado para aplicá-lo.
     assert "config\\orthanc.json')) then begin" not in installer
