@@ -1,0 +1,649 @@
+﻿**********************
+Início da transcrição do Windows PowerShell
+Hora de início: 20261119203615
+Nome de Usuário: SERVER-DELL\dedec
+Executar como Usuário: SERVER-DELL\dedec
+Nome da Configuração: 
+Computador: SERVER-DELL (Microsoft Windows NT 10.0.19045.0)
+Aplicativo Host: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_local_test.ps1 -Yes
+ID do Processo: 18484
+PSVersion: 5.1.19041.6456
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.19041.6456
+BuildVersion: 10.0.19041.6456
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==> Pré-requisitos
+3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]
+Inno Setup: C:\Program Files (x86)\Inno Setup 6\ISCC.exe
+Branch: feature/router-fases-5-8 @ 6c75819
+
+==> Baixar Orthanc 1.13.0 (oficial, orthanc.uclouvain.be)
+Já existe; reaproveitado.
+
+==> Baixar WireGuard for Windows 1.1 (MSI oficial, download.wireguard.com)
+Já existe; reaproveitado.
+MSI assinado por: CN=WireGuard LLC, O=WireGuard LLC, S=Colorado, C=US, OID.2.5.4.15=Private Organization, OID.1.3.6.1.4.1.311.60.2.1.2=Ohio, OID.1.3.6.1.4.1.311.60.2.1.3=US, SERIALNUMBER=4227913
+
+==> SHA-256 dos componentes (registre na homologação)
+Homologação local 2026-11-19T20:36:16
+Orthanc.exe 1.13.0  SHA256 2D507DF95DCABB479D3931992F5A2607CDE105DBE38B4562F43653E7CE10C424  (orthanc.uclouvain.be/downloads/windows-64/orthanc/1.13.0/)
+wireguard-amd64-1.1.msi  SHA256 6DAA5D37A9E2950DFB8C48B95AB8E562CB2BAD1C785D020F38F97BEA4C6A5566  (download.wireguard.com/windows-client/)  assinado: CN=WireGuard LLC, O=WireGuard LLC, S=Colorado, C=US, OID.2.5.4.15=Private Organization, OID.1.3.6.1.4.1.311.60.2.1.2=Ohio, OID.1.3.6.1.4.1.311.60.2.1.3=US, SERIALNUMBER=4227913
+
+==> Testes no Windows (pytest + ruff)
+  C:\Users\dedec\AppData\Local\Temp\pip-build-env-eld51lqz\overlay\Lib\site-packages\setuptools\command\editable_wheel.py:354: BuildBackendWarning: Editable installation.
+  !!
+
+          ********************************************************************************
+          Please be careful with folders in your working directory with the same
+          name as your package as they may take precedence during imports.
+          ********************************************************************************
+
+  !!
+    with strategy, WheelFile(wheel_path, "w") as wheel_obj:
+All checks passed!
+........................................................................ [ 37%]
+........................................................................ [ 74%]
+.................................................                        [100%]
+============================== warnings summary ===============================
+.venv-test\Lib\site-packages\fastapi\testclient.py:1
+  C:\xampp\htdocs\dashboard\voxel_router_desktop-1\.venv-test\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_vpn.py::test_api_applies_kit_and_creates_paused_voxel_destination
+  C:\xampp\htdocs\dashboard\voxel_router_desktop-1\.venv-test\Lib\site-packages\fastapi\routing.py:381: StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    return await dependant.call(**values)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+193 passed, 2 warnings in 83.99s (0:01:23)
+
+==> Gerar instalador
+Orthanc.exe SHA-256 OK: 2D507DF95DCABB479D3931992F5A2607CDE105DBE38B4562F43653E7CE10C424
+WireGuard MSI SHA-256 OK: 6DAA5D37A9E2950DFB8C48B95AB8E562CB2BAD1C785D020F38F97BEA4C6A5566
+WireGuard MSI assinado por: CN=WireGuard LLC, O=WireGuard LLC, S=Colorado, C=US, OID.2.5.4.15=Private Organization, OID.1.3.6.1.4.1.311.60.2.1.2=Ohio, OID.1.3.6.1.4.1.311.60.2.1.3=US, SERIALNUMBER=4227913
+==> Atualizar pip
+Requirement already satisfied: pip in .\.venv-build\Lib\site-packages (26.3)
+==> Instalar dependências (constraints exatas)
+Processing .\.
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Requirement already satisfied: pyinstaller in .\.venv-build\Lib\site-packages (6.22.3)
+Requirement already satisfied: pillow in .\.venv-build\Lib\site-packages (13.0.0)
+Requirement already satisfied: fastapi<1.0,>=0.115 in .\.venv-build\Lib\site-packages (from voxel-router-desktop==1.1.0) (0.165.0)
+Requirement already satisfied: uvicorn<1.0,>=0.30 in .\.venv-build\Lib\site-packages (from uvicorn[standard]<1.0,>=0.30->voxel-router-desktop==1.1.0) (0.54.0)
+Requirement already satisfied: pydantic<3.0,>=2.8 in .\.venv-build\Lib\site-packages (from voxel-router-desktop==1.1.0) (2.14.3)
+Requirement already satisfied: pydicom<4.0,>=3.0 in .\.venv-build\Lib\site-packages (from voxel-router-desktop==1.1.0) (3.0.2)
+Requirement already satisfied: pynetdicom<4.0,>=3.0 in .\.venv-build\Lib\site-packages (from voxel-router-desktop==1.1.0) (3.0.4)
+Requirement already satisfied: httpx<1.0,>=0.27 in .\.venv-build\Lib\site-packages (from voxel-router-desktop==1.1.0) (0.28.1)
+Requirement already satisfied: argon2-cffi<24.0,>=23.1 in .\.venv-build\Lib\site-packages (from voxel-router-desktop==1.1.0) (23.1.0)
+Requirement already satisfied: cryptography<45.0,>=43.0 in .\.venv-build\Lib\site-packages (from voxel-router-desktop==1.1.0) (44.0.3)
+Requirement already satisfied: defusedxml<1.0,>=0.7 in .\.venv-build\Lib\site-packages (from voxel-router-desktop==1.1.0) (0.7.1)
+Requirement already satisfied: psutil<7.0,>=6.0 in .\.venv-build\Lib\site-packages (from voxel-router-desktop==1.1.0) (6.1.1)
+Requirement already satisfied: structlog<26.0,>=24.4 in .\.venv-build\Lib\site-packages (from voxel-router-desktop==1.1.0) (25.5.0)
+Requirement already satisfied: pywin32>=306 in .\.venv-build\Lib\site-packages (from voxel-router-desktop==1.1.0) (312)
+Requirement already satisfied: argon2-cffi-bindings in .\.venv-build\Lib\site-packages (from argon2-cffi<24.0,>=23.1->voxel-router-desktop==1.1.0) (26.2.0)
+Requirement already satisfied: cffi>=1.12 in .\.venv-build\Lib\site-packages (from cryptography<45.0,>=43.0->voxel-router-desktop==1.1.0) (2.1.1)
+Requirement already satisfied: starlette>=1.6.0 in .\.venv-build\Lib\site-packages (from fastapi<1.0,>=0.115->voxel-router-desktop==1.1.0) (1.10.0)
+Requirement already satisfied: anyio>=4.1.0 in .\.venv-build\Lib\site-packages (from fastapi<1.0,>=0.115->voxel-router-desktop==1.1.0) (4.16.0)
+Requirement already satisfied: typing-extensions>=4.8.0 in .\.venv-build\Lib\site-packages (from fastapi<1.0,>=0.115->voxel-router-desktop==1.1.0) (4.16.0)
+Requirement already satisfied: typing-inspection>=0.4.2 in .\.venv-build\Lib\site-packages (from fastapi<1.0,>=0.115->voxel-router-desktop==1.1.0) (0.4.5)
+Requirement already satisfied: annotated-doc>=0.0.2 in .\.venv-build\Lib\site-packages (from fastapi<1.0,>=0.115->voxel-router-desktop==1.1.0) (0.0.7)
+Requirement already satisfied: opentelemetry-api>=1.44.0 in .\.venv-build\Lib\site-packages (from fastapi<1.0,>=0.115->voxel-router-desktop==1.1.0) (1.45.2)
+Requirement already satisfied: certifi in .\.venv-build\Lib\site-packages (from httpx<1.0,>=0.27->voxel-router-desktop==1.1.0) (2026.10.23)
+Requirement already satisfied: httpcore==1.* in .\.venv-build\Lib\site-packages (from httpx<1.0,>=0.27->voxel-router-desktop==1.1.0) (1.0.9)
+Requirement already satisfied: idna in .\.venv-build\Lib\site-packages (from httpx<1.0,>=0.27->voxel-router-desktop==1.1.0) (3.20)
+Requirement already satisfied: h11>=0.16 in .\.venv-build\Lib\site-packages (from httpcore==1.*->httpx<1.0,>=0.27->voxel-router-desktop==1.1.0) (0.16.0)
+Requirement already satisfied: annotated-types>=0.6.0 in .\.venv-build\Lib\site-packages (from pydantic<3.0,>=2.8->voxel-router-desktop==1.1.0) (0.8.0)
+Requirement already satisfied: pydantic-core==2.50.4 in .\.venv-build\Lib\site-packages (from pydantic<3.0,>=2.8->voxel-router-desktop==1.1.0) (2.50.4)
+Requirement already satisfied: click>=7.0 in .\.venv-build\Lib\site-packages (from uvicorn<1.0,>=0.30->uvicorn[standard]<1.0,>=0.30->voxel-router-desktop==1.1.0) (8.5.1)
+Requirement already satisfied: httptools>=0.8.0 in .\.venv-build\Lib\site-packages (from uvicorn[standard]<1.0,>=0.30->voxel-router-desktop==1.1.0) (0.9.0)
+Requirement already satisfied: python-dotenv>=0.13 in .\.venv-build\Lib\site-packages (from uvicorn[standard]<1.0,>=0.30->voxel-router-desktop==1.1.0) (1.2.4)
+Requirement already satisfied: pyyaml>=5.1 in .\.venv-build\Lib\site-packages (from uvicorn[standard]<1.0,>=0.30->voxel-router-desktop==1.1.0) (6.0.3)
+Requirement already satisfied: watchfiles>=0.20 in .\.venv-build\Lib\site-packages (from uvicorn[standard]<1.0,>=0.30->voxel-router-desktop==1.1.0) (1.3.0)
+Requirement already satisfied: websockets>=13.0 in .\.venv-build\Lib\site-packages (from uvicorn[standard]<1.0,>=0.30->voxel-router-desktop==1.1.0) (17.4)
+Requirement already satisfied: altgraph in .\.venv-build\Lib\site-packages (from pyinstaller) (0.17.5)
+Requirement already satisfied: packaging>=22.0 in .\.venv-build\Lib\site-packages (from pyinstaller) (26.3)
+Requirement already satisfied: pefile>=2022.5.30 in .\.venv-build\Lib\site-packages (from pyinstaller) (2024.8.26)
+Requirement already satisfied: pyinstaller-hooks-contrib>=2026.7 in .\.venv-build\Lib\site-packages (from pyinstaller) (2026.10)
+Requirement already satisfied: pywin32-ctypes>=0.2.1 in .\.venv-build\Lib\site-packages (from pyinstaller) (0.2.3)
+Requirement already satisfied: setuptools>=42.0.0 in .\.venv-build\Lib\site-packages (from pyinstaller) (84.2.1)
+Requirement already satisfied: pycparser in .\.venv-build\Lib\site-packages (from cffi>=1.12->cryptography<45.0,>=43.0->voxel-router-desktop==1.1.0) (3.12)
+Building wheels for collected packages: voxel-router-desktop
+  Building wheel for voxel-router-desktop (pyproject.toml): started
+  Building wheel for voxel-router-desktop (pyproject.toml): finished with status 'done'
+  Created wheel for voxel-router-desktop: filename=voxel_router_desktop-1.1.0-py3-none-any.whl size=79518 sha256=f3f0fc5d4c63af3b9a66cfc2f833d21f5b61f2a5e8285968d06e6b1f87aff768
+  Stored in directory: C:\Users\dedec\AppData\Local\Temp\pip-ephem-wheel-cache-bktqdn65\wheels\36\af\cd\ef7b09ef8374ac00993414c42172730ce03bb9f33edc6b859c
+Successfully built voxel-router-desktop
+Installing collected packages: voxel-router-desktop
+  Attempting uninstall: voxel-router-desktop
+    Found existing installation: voxel-router-desktop 1.1.0
+    Uninstalling voxel-router-desktop-1.1.0:
+      Successfully uninstalled voxel-router-desktop-1.1.0
+Successfully installed voxel-router-desktop-1.1.0
+==> Registrar dependências efetivas
+==> Gerar ícones e imagens
+==> PyInstaller VOXELRouter
+334 INFO: PyInstaller: 6.22.3, contrib hooks: 2026.10
+335 INFO: Python: 3.12.10
+374 INFO: Platform: Windows-10-10.0.19045-SP0
+374 INFO: Python environment: C:\xampp\htdocs\dashboard\voxel_router_desktop-1\.venv-build
+376 INFO: wrote C:\xampp\htdocs\dashboard\voxel_router_desktop-1\VOXELRouter.spec
+386 INFO: Removing temporary files and cleaning cache in C:\Users\dedec\AppData\Local\pyinstaller
+389 INFO: Module search paths (PYTHONPATH):
+['C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1',
+ 'C:\\Users\\dedec\\AppData\\Local\\Programs\\Python\\Python312\\python312.zip',
+ 'C:\\Users\\dedec\\AppData\\Local\\Programs\\Python\\Python312\\DLLs',
+ 'C:\\Users\\dedec\\AppData\\Local\\Programs\\Python\\Python312\\Lib',
+ 'C:\\Users\\dedec\\AppData\\Local\\Programs\\Python\\Python312',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\win32',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\win32\\lib',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\pythonwin',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\app']
+957 INFO: Appending 'datas' from .spec
+962 INFO: checking Analysis
+962 INFO: Building Analysis because Analysis-00.toc is non existent
+962 INFO: Looking for Python shared library...
+962 INFO: Using Python shared library: C:\Users\dedec\AppData\Local\Programs\Python\Python312\python312.dll
+962 INFO: Running Analysis Analysis-00.toc
+963 INFO: Target bytecode optimization level: 0
+963 INFO: Initializing module dependency graph...
+965 INFO: Initializing module graph hook caches...
+1086 INFO: Analyzing modules for base_library.zip ...
+3449 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+4192 INFO: Processing standard module hook 'hook-math.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+6423 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+8628 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+9311 INFO: Caching module dependency graph...
+9379 INFO: Analyzing C:\xampp\htdocs\dashboard\voxel_router_desktop-1\app\main.py
+9389 INFO: Processing standard module hook 'hook-uvicorn.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+10569 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+10867 INFO: Processing standard module hook 'hook-xml.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+11242 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+12618 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+12624 INFO: SetuptoolsInfo: initializing cached setuptools info...
+14589 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+15033 INFO: Processing standard module hook 'hook-difflib.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+15225 INFO: Processing standard module hook 'hook-webbrowser.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+15589 INFO: Processing standard module hook 'hook-websockets.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+17213 INFO: Processing standard module hook 'hook-anyio.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+18845 INFO: Processing standard module hook 'hook-sqlite3.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+19860 INFO: Processing standard module hook 'hook-pydantic.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+21408 INFO: Processing standard module hook 'hook-zoneinfo.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+21449 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+23399 INFO: Processing standard module hook 'hook-opentelemetry.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+23933 INFO: Processing standard module hook 'hook-argon2.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+23967 INFO: Processing pre-safe-import-module hook 'hook-importlib_metadata.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+23969 INFO: Setuptools: 'importlib_metadata' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.importlib_metadata'!
+23980 INFO: Processing standard module hook 'hook-setuptools.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+24007 INFO: Processing pre-safe-import-module hook 'hook-distutils.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+24056 INFO: Processing pre-safe-import-module hook 'hook-jaraco.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+24059 INFO: Setuptools: 'jaraco' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.jaraco'!
+24076 INFO: Processing pre-safe-import-module hook 'hook-more_itertools.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+24078 INFO: Setuptools: 'more_itertools' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.more_itertools'!
+24282 INFO: Processing standard module hook 'hook-_osx_support.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+24308 INFO: Processing pre-safe-import-module hook 'hook-packaging.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+24694 INFO: Processing standard module hook 'hook-setuptools._vendor.jaraco.text.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+24698 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+24712 INFO: Processing pre-safe-import-module hook 'hook-backports.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+24714 INFO: Setuptools: 'backports' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.backports'!
+25705 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+25707 INFO: Setuptools: 'tomli' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.tomli'!
+26640 INFO: Processing pre-safe-import-module hook 'hook-wheel.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+26642 INFO: Setuptools: 'wheel' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.wheel'!
+26732 INFO: Processing standard module hook 'hook-setuptools._vendor.importlib_metadata.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+26774 INFO: Processing pre-safe-import-module hook 'hook-zipp.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+26776 INFO: Setuptools: 'zipp' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.zipp'!
+26846 INFO: Processing standard module hook 'hook-pydicom.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+30997 INFO: Processing standard module hook 'hook-PIL.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+31178 INFO: Processing standard module hook 'hook-PIL.Image.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+32435 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+32691 INFO: Processing standard module hook 'hook-PIL.ImageFilter.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+32973 INFO: Processing standard module hook 'hook-xml.dom.domreg.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+35102 INFO: Processing standard module hook 'hook-psutil.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+35512 INFO: Processing standard module hook 'hook-certifi.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+36134 INFO: Processing standard module hook 'hook-cryptography.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+41332 INFO: hook-cryptography: cryptography does not seem to be using dynamically linked OpenSSL.
+41467 INFO: Processing module hooks (post-graph stage)...
+42420 WARNING: Hidden import "tzdata" not found!
+42858 INFO: Processing standard module hook 'hook-PIL.SpiderImagePlugin.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+43110 INFO: Performing binary vs. data reclassification (62 entries)
+43156 INFO: Looking for ctypes DLLs
+43231 INFO: Analyzing run-time hooks ...
+43239 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+43244 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+43248 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+43252 INFO: Including run-time hook 'pyi_rth_cryptography_openssl.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+43254 INFO: Including run-time hook 'pyi_rth_setuptools.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+43290 INFO: Creating base_library.zip...
+43326 INFO: Looking for dynamic libraries
+46630 INFO: Extra DLL search directories (AddDllDirectory): []
+46630 INFO: Extra DLL search directories (PATH): []
+47975 INFO: Warnings written to C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELRouter\warn-VOXELRouter.txt
+48173 INFO: Graph cross-reference written to C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELRouter\xref-VOXELRouter.html
+48254 INFO: checking PYZ
+48254 INFO: Building PYZ because PYZ-00.toc is non existent
+48255 INFO: Building PYZ (ZlibArchive) C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELRouter\PYZ-00.pyz
+49393 INFO: Building PYZ (ZlibArchive) C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELRouter\PYZ-00.pyz completed successfully.
+49447 INFO: checking PKG
+49447 INFO: Building PKG because PKG-00.toc is non existent
+49447 INFO: Building PKG (CArchive) VOXELRouter.pkg
+49508 INFO: Building PKG (CArchive) VOXELRouter.pkg completed successfully.
+49511 INFO: Bootloader C:\xampp\htdocs\dashboard\voxel_router_desktop-1\.venv-build\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\run.exe
+49511 INFO: checking EXE
+49511 INFO: Building EXE because EXE-00.toc is non existent
+49511 INFO: Building EXE from EXE-00.toc
+49512 INFO: Copying bootloader EXE to C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELRouter\VOXELRouter.exe
+49596 INFO: Copying icon to EXE
+49660 INFO: Copying 0 resources to EXE
+49660 INFO: Embedding manifest in EXE
+49727 INFO: Appending PKG archive to EXE
+49826 INFO: Fixing EXE headers
+50233 INFO: Building EXE from EXE-00.toc completed successfully.
+50238 INFO: checking COLLECT
+50238 INFO: Building COLLECT because COLLECT-00.toc is non existent
+50239 INFO: Building COLLECT COLLECT-00.toc
+50994 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+51002 INFO: Build complete! The results are available in: C:\xampp\htdocs\dashboard\voxel_router_desktop-1\dist
+==> PyInstaller VOXELRouterService
+294 INFO: PyInstaller: 6.22.3, contrib hooks: 2026.10
+294 INFO: Python: 3.12.10
+335 INFO: Platform: Windows-10-10.0.19045-SP0
+335 INFO: Python environment: C:\xampp\htdocs\dashboard\voxel_router_desktop-1\.venv-build
+337 INFO: wrote C:\xampp\htdocs\dashboard\voxel_router_desktop-1\VOXELRouterService.spec
+347 INFO: Removing temporary files and cleaning cache in C:\Users\dedec\AppData\Local\pyinstaller
+353 INFO: Module search paths (PYTHONPATH):
+['C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1',
+ 'C:\\Users\\dedec\\AppData\\Local\\Programs\\Python\\Python312\\python312.zip',
+ 'C:\\Users\\dedec\\AppData\\Local\\Programs\\Python\\Python312\\DLLs',
+ 'C:\\Users\\dedec\\AppData\\Local\\Programs\\Python\\Python312\\Lib',
+ 'C:\\Users\\dedec\\AppData\\Local\\Programs\\Python\\Python312',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\win32',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\win32\\lib',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\pythonwin',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\app']
+964 INFO: Appending 'datas' from .spec
+967 INFO: checking Analysis
+967 INFO: Building Analysis because Analysis-00.toc is non existent
+967 INFO: Looking for Python shared library...
+968 INFO: Using Python shared library: C:\Users\dedec\AppData\Local\Programs\Python\Python312\python312.dll
+968 INFO: Running Analysis Analysis-00.toc
+968 INFO: Target bytecode optimization level: 0
+968 INFO: Initializing module dependency graph...
+971 INFO: Initializing module graph hook caches...
+1004 INFO: Analyzing modules for base_library.zip ...
+3108 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+4143 INFO: Processing standard module hook 'hook-math.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+5757 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+7193 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+7957 INFO: Caching module dependency graph...
+8039 INFO: Analyzing C:\xampp\htdocs\dashboard\voxel_router_desktop-1\app\service_main.py
+8262 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+8504 INFO: Processing standard module hook 'hook-xml.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+9088 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+9704 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+9715 INFO: Processing standard module hook 'hook-uvicorn.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+11332 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+11335 INFO: SetuptoolsInfo: initializing cached setuptools info...
+13362 INFO: Processing standard module hook 'hook-difflib.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+13530 INFO: Processing standard module hook 'hook-webbrowser.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+13814 INFO: Processing standard module hook 'hook-websockets.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+15190 INFO: Processing standard module hook 'hook-anyio.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+16568 INFO: Processing standard module hook 'hook-sqlite3.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+17455 INFO: Processing standard module hook 'hook-pydantic.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+18779 INFO: Processing standard module hook 'hook-zoneinfo.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+18817 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+20568 INFO: Processing standard module hook 'hook-opentelemetry.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+21039 INFO: Processing standard module hook 'hook-argon2.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+21065 INFO: Processing pre-safe-import-module hook 'hook-importlib_metadata.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+21067 INFO: Setuptools: 'importlib_metadata' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.importlib_metadata'!
+21076 INFO: Processing standard module hook 'hook-setuptools.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+21097 INFO: Processing pre-safe-import-module hook 'hook-distutils.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+21141 INFO: Processing pre-safe-import-module hook 'hook-jaraco.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+21142 INFO: Setuptools: 'jaraco' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.jaraco'!
+21158 INFO: Processing pre-safe-import-module hook 'hook-more_itertools.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+21160 INFO: Setuptools: 'more_itertools' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.more_itertools'!
+21341 INFO: Processing standard module hook 'hook-_osx_support.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+21364 INFO: Processing pre-safe-import-module hook 'hook-packaging.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+21705 INFO: Processing standard module hook 'hook-setuptools._vendor.jaraco.text.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+21708 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+21721 INFO: Processing pre-safe-import-module hook 'hook-backports.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+21722 INFO: Setuptools: 'backports' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.backports'!
+22539 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+22541 INFO: Setuptools: 'tomli' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.tomli'!
+23345 INFO: Processing pre-safe-import-module hook 'hook-wheel.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+23346 INFO: Setuptools: 'wheel' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.wheel'!
+23473 INFO: Processing standard module hook 'hook-setuptools._vendor.importlib_metadata.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+23516 INFO: Processing pre-safe-import-module hook 'hook-zipp.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+23517 INFO: Setuptools: 'zipp' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.zipp'!
+23589 INFO: Processing standard module hook 'hook-pydicom.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+26687 INFO: Processing standard module hook 'hook-PIL.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+26862 INFO: Processing standard module hook 'hook-PIL.Image.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+27662 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+27933 INFO: Processing standard module hook 'hook-PIL.ImageFilter.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+28203 INFO: Processing standard module hook 'hook-xml.dom.domreg.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+30199 INFO: Processing standard module hook 'hook-psutil.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+30580 INFO: Processing standard module hook 'hook-certifi.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+31132 INFO: Processing standard module hook 'hook-cryptography.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+36215 INFO: hook-cryptography: cryptography does not seem to be using dynamically linked OpenSSL.
+36391 INFO: Processing standard module hook 'hook-pywintypes.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+37091 INFO: Processing module hooks (post-graph stage)...
+38013 WARNING: Hidden import "tzdata" not found!
+38431 INFO: Processing standard module hook 'hook-PIL.SpiderImagePlugin.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+38695 INFO: Performing binary vs. data reclassification (63 entries)
+38712 INFO: Looking for ctypes DLLs
+38774 INFO: Analyzing run-time hooks ...
+38783 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+38788 INFO: Including run-time hook 'pyi_rth_pywintypes.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+38792 INFO: Including run-time hook 'pyi_rth_cryptography_openssl.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+38793 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+38797 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+38800 INFO: Including run-time hook 'pyi_rth_setuptools.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+38839 INFO: Creating base_library.zip...
+38873 INFO: Looking for dynamic libraries
+41925 INFO: Extra DLL search directories (AddDllDirectory): []
+41925 INFO: Extra DLL search directories (PATH): []
+43205 INFO: Warnings written to C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELRouterService\warn-VOXELRouterService.txt
+43660 INFO: Graph cross-reference written to C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELRouterService\xref-VOXELRouterService.html
+43737 INFO: checking PYZ
+43737 INFO: Building PYZ because PYZ-00.toc is non existent
+43737 INFO: Building PYZ (ZlibArchive) C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELRouterService\PYZ-00.pyz
+44814 INFO: Building PYZ (ZlibArchive) C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELRouterService\PYZ-00.pyz completed successfully.
+44858 INFO: checking PKG
+44858 INFO: Building PKG because PKG-00.toc is non existent
+44858 INFO: Building PKG (CArchive) VOXELRouterService.pkg
+44901 INFO: Building PKG (CArchive) VOXELRouterService.pkg completed successfully.
+44903 INFO: Bootloader C:\xampp\htdocs\dashboard\voxel_router_desktop-1\.venv-build\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\run.exe
+44903 INFO: checking EXE
+44904 INFO: Building EXE because EXE-00.toc is non existent
+44904 INFO: Building EXE from EXE-00.toc
+44904 INFO: Copying bootloader EXE to C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELRouterService\VOXELRouterService.exe
+44962 INFO: Copying icon to EXE
+45027 INFO: Copying 0 resources to EXE
+45027 INFO: Embedding manifest in EXE
+45092 INFO: Appending PKG archive to EXE
+45184 INFO: Fixing EXE headers
+45539 INFO: Building EXE from EXE-00.toc completed successfully.
+45544 INFO: checking COLLECT
+45544 INFO: Building COLLECT because COLLECT-00.toc is non existent
+45544 INFO: Building COLLECT COLLECT-00.toc
+46175 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+46182 INFO: Build complete! The results are available in: C:\xampp\htdocs\dashboard\voxel_router_desktop-1\dist
+==> PyInstaller VOXELOrthancService
+266 INFO: PyInstaller: 6.22.3, contrib hooks: 2026.10
+266 INFO: Python: 3.12.10
+305 INFO: Platform: Windows-10-10.0.19045-SP0
+305 INFO: Python environment: C:\xampp\htdocs\dashboard\voxel_router_desktop-1\.venv-build
+306 INFO: wrote C:\xampp\htdocs\dashboard\voxel_router_desktop-1\VOXELOrthancService.spec
+316 INFO: Removing temporary files and cleaning cache in C:\Users\dedec\AppData\Local\pyinstaller
+319 INFO: Module search paths (PYTHONPATH):
+['C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1',
+ 'C:\\Users\\dedec\\AppData\\Local\\Programs\\Python\\Python312\\python312.zip',
+ 'C:\\Users\\dedec\\AppData\\Local\\Programs\\Python\\Python312\\DLLs',
+ 'C:\\Users\\dedec\\AppData\\Local\\Programs\\Python\\Python312\\Lib',
+ 'C:\\Users\\dedec\\AppData\\Local\\Programs\\Python\\Python312',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\win32',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\win32\\lib',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\pythonwin',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\app\\orthanc']
+1373 INFO: Appending 'datas' from .spec
+1374 INFO: checking Analysis
+1374 INFO: Building Analysis because Analysis-00.toc is non existent
+1374 INFO: Looking for Python shared library...
+1374 INFO: Using Python shared library: C:\Users\dedec\AppData\Local\Programs\Python\Python312\python312.dll
+1374 INFO: Running Analysis Analysis-00.toc
+1374 INFO: Target bytecode optimization level: 0
+1374 INFO: Initializing module dependency graph...
+1377 INFO: Initializing module graph hook caches...
+1403 INFO: Analyzing modules for base_library.zip ...
+4200 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+4933 INFO: Processing standard module hook 'hook-math.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+6850 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+8704 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+9231 INFO: Caching module dependency graph...
+9296 INFO: Analyzing C:\xampp\htdocs\dashboard\voxel_router_desktop-1\app\orthanc\service_main.py
+9340 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+9433 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+9436 INFO: SetuptoolsInfo: initializing cached setuptools info...
+10915 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+11125 INFO: Processing standard module hook 'hook-xml.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+11434 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+12882 INFO: Processing standard module hook 'hook-cryptography.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+14867 INFO: hook-cryptography: cryptography does not seem to be using dynamically linked OpenSSL.
+15004 INFO: Processing standard module hook 'hook-pywintypes.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+15688 INFO: Processing module hooks (post-graph stage)...
+16132 INFO: Performing binary vs. data reclassification (10 entries)
+16140 INFO: Looking for ctypes DLLs
+16163 INFO: Analyzing run-time hooks ...
+16166 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+16170 INFO: Including run-time hook 'pyi_rth_pywintypes.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+16172 INFO: Including run-time hook 'pyi_rth_cryptography_openssl.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+16173 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+16177 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+16187 INFO: Creating base_library.zip...
+16223 INFO: Looking for dynamic libraries
+16762 INFO: Extra DLL search directories (AddDllDirectory): []
+16762 INFO: Extra DLL search directories (PATH): []
+17715 INFO: Warnings written to C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELOrthancService\warn-VOXELOrthancService.txt
+17772 INFO: Graph cross-reference written to C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELOrthancService\xref-VOXELOrthancService.html
+17812 INFO: checking PYZ
+17812 INFO: Building PYZ because PYZ-00.toc is non existent
+17812 INFO: Building PYZ (ZlibArchive) C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELOrthancService\PYZ-00.pyz
+18161 INFO: Building PYZ (ZlibArchive) C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELOrthancService\PYZ-00.pyz completed successfully.
+18176 INFO: checking PKG
+18176 INFO: Building PKG because PKG-00.toc is non existent
+18176 INFO: Building PKG (CArchive) VOXELOrthancService.pkg
+18213 INFO: Building PKG (CArchive) VOXELOrthancService.pkg completed successfully.
+18215 INFO: Bootloader C:\xampp\htdocs\dashboard\voxel_router_desktop-1\.venv-build\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\run.exe
+18215 INFO: checking EXE
+18216 INFO: Building EXE because EXE-00.toc is non existent
+18216 INFO: Building EXE from EXE-00.toc
+18216 INFO: Copying bootloader EXE to C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELOrthancService\VOXELOrthancService.exe
+18323 INFO: Copying icon to EXE
+18385 INFO: Copying 0 resources to EXE
+18385 INFO: Embedding manifest in EXE
+18463 INFO: Appending PKG archive to EXE
+18560 INFO: Fixing EXE headers
+18973 INFO: Building EXE from EXE-00.toc completed successfully.
+18978 INFO: checking COLLECT
+18978 INFO: Building COLLECT because COLLECT-00.toc is non existent
+18980 INFO: Building COLLECT COLLECT-00.toc
+19409 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+19414 INFO: Build complete! The results are available in: C:\xampp\htdocs\dashboard\voxel_router_desktop-1\dist
+==> PyInstaller VOXELDiagnostics
+311 INFO: PyInstaller: 6.22.3, contrib hooks: 2026.10
+312 INFO: Python: 3.12.10
+358 INFO: Platform: Windows-10-10.0.19045-SP0
+358 INFO: Python environment: C:\xampp\htdocs\dashboard\voxel_router_desktop-1\.venv-build
+359 INFO: wrote C:\xampp\htdocs\dashboard\voxel_router_desktop-1\VOXELDiagnostics.spec
+370 INFO: Removing temporary files and cleaning cache in C:\Users\dedec\AppData\Local\pyinstaller
+374 INFO: Module search paths (PYTHONPATH):
+['C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1',
+ 'C:\\Users\\dedec\\AppData\\Local\\Programs\\Python\\Python312\\python312.zip',
+ 'C:\\Users\\dedec\\AppData\\Local\\Programs\\Python\\Python312\\DLLs',
+ 'C:\\Users\\dedec\\AppData\\Local\\Programs\\Python\\Python312\\Lib',
+ 'C:\\Users\\dedec\\AppData\\Local\\Programs\\Python\\Python312',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\win32',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\win32\\lib',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\pythonwin',
+ 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\scripts']
+1044 INFO: Appending 'datas' from .spec
+1046 INFO: checking Analysis
+1046 INFO: Building Analysis because Analysis-00.toc is non existent
+1046 INFO: Looking for Python shared library...
+1046 INFO: Using Python shared library: C:\Users\dedec\AppData\Local\Programs\Python\Python312\python312.dll
+1046 INFO: Running Analysis Analysis-00.toc
+1046 INFO: Target bytecode optimization level: 0
+1046 INFO: Initializing module dependency graph...
+1049 INFO: Initializing module graph hook caches...
+1077 INFO: Analyzing modules for base_library.zip ...
+3550 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+5905 INFO: Processing standard module hook 'hook-math.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+6201 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+7989 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+8511 INFO: Caching module dependency graph...
+8576 INFO: Analyzing C:\xampp\htdocs\dashboard\voxel_router_desktop-1\scripts\diagnose_install.py
+8799 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+9022 INFO: Processing standard module hook 'hook-xml.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+9554 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+10126 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+10816 INFO: Processing standard module hook 'hook-certifi.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+10983 INFO: Processing standard module hook 'hook-anyio.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+11746 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+11749 INFO: SetuptoolsInfo: initializing cached setuptools info...
+14102 INFO: Processing standard module hook 'hook-difflib.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+14273 INFO: Processing standard module hook 'hook-webbrowser.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks'
+14391 INFO: Processing standard module hook 'hook-psutil.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+14742 INFO: Processing standard module hook 'hook-cryptography.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+19407 INFO: hook-cryptography: cryptography does not seem to be using dynamically linked OpenSSL.
+19495 INFO: Processing module hooks (post-graph stage)...
+19903 INFO: Performing binary vs. data reclassification (11 entries)
+19907 INFO: Looking for ctypes DLLs
+19954 INFO: Analyzing run-time hooks ...
+19960 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+19966 INFO: Including run-time hook 'pyi_rth_cryptography_openssl.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+19967 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+19972 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'C:\\xampp\\htdocs\\dashboard\\voxel_router_desktop-1\\.venv-build\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+19998 INFO: Creating base_library.zip...
+20047 INFO: Looking for dynamic libraries
+21346 INFO: Extra DLL search directories (AddDllDirectory): []
+21346 INFO: Extra DLL search directories (PATH): []
+22152 INFO: Warnings written to C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELDiagnostics\warn-VOXELDiagnostics.txt
+22238 INFO: Graph cross-reference written to C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELDiagnostics\xref-VOXELDiagnostics.html
+22285 INFO: checking PYZ
+22286 INFO: Building PYZ because PYZ-00.toc is non existent
+22286 INFO: Building PYZ (ZlibArchive) C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELDiagnostics\PYZ-00.pyz
+22710 INFO: Building PYZ (ZlibArchive) C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELDiagnostics\PYZ-00.pyz completed successfully.
+22731 INFO: checking PKG
+22732 INFO: Building PKG because PKG-00.toc is non existent
+22732 INFO: Building PKG (CArchive) VOXELDiagnostics.pkg
+22775 INFO: Building PKG (CArchive) VOXELDiagnostics.pkg completed successfully.
+22779 INFO: Bootloader C:\xampp\htdocs\dashboard\voxel_router_desktop-1\.venv-build\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\run.exe
+22779 INFO: checking EXE
+22779 INFO: Building EXE because EXE-00.toc is non existent
+22779 INFO: Building EXE from EXE-00.toc
+22779 INFO: Copying bootloader EXE to C:\xampp\htdocs\dashboard\voxel_router_desktop-1\build\VOXELDiagnostics\VOXELDiagnostics.exe
+22850 INFO: Copying icon to EXE
+22914 INFO: Copying 0 resources to EXE
+22914 INFO: Embedding manifest in EXE
+22979 INFO: Appending PKG archive to EXE
+23068 INFO: Fixing EXE headers
+23455 INFO: Building EXE from EXE-00.toc completed successfully.
+23458 INFO: checking COLLECT
+23459 INFO: Building COLLECT because COLLECT-00.toc is non existent
+23462 INFO: Building COLLECT COLLECT-00.toc
+23878 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+23882 INFO: Build complete! The results are available in: C:\xampp\htdocs\dashboard\voxel_router_desktop-1\dist
+==> Inno Setup
+Inno Setup 6 Command-Line Compiler
+Copyright (C) 1997-2026 Jordan Russell. All rights reserved.
+Portions Copyright (C) 2000-2026 Martijn Laan. All rights reserved.
+Portions Copyright (C) 2001-2004 Alex Yackimoff. All rights reserved.
+https://www.innosetup.com
+
+Compiler engine version: Inno Setup 6.7.3
+Non-commercial use only
+
+Preprocessing
+   Reading file: C:\Program Files (x86)\Inno Setup 6\ISPPBuiltins.iss
+Parsing [Setup] section, line 17
+Parsing [Setup] section, line 18
+Parsing [Setup] section, line 19
+Parsing [Setup] section, line 20
+Parsing [Setup] section, line 21
+Parsing [Setup] section, line 22
+Parsing [Setup] section, line 23
+Parsing [Setup] section, line 24
+Parsing [Setup] section, line 25
+Parsing [Setup] section, line 26
+Parsing [Setup] section, line 27
+Parsing [Setup] section, line 28
+Parsing [Setup] section, line 29
+Parsing [Setup] section, line 30
+Parsing [Setup] section, line 31
+Parsing [Setup] section, line 32
+Parsing [Setup] section, line 33
+Parsing [Setup] section, line 34
+Parsing [Setup] section, line 35
+Parsing [Setup] section, line 36
+Reading file (WizardImageFile)
+   Reading file: C:\xampp\htdocs\dashboard\voxel_router_desktop-1\installer\..\frontend\static\img\splash.bmp
+Reading file (WizardSmallImageFile)
+Preparing Setup program executable
+   Verification successful
+   Updating icons (Setup.e32)
+   Updating version info (Setup.e32)
+Determining language code pages
+Parsing [Languages] section, line 39
+   Reading file: C:\Program Files (x86)\Inno Setup 6\Languages\BrazilianPortuguese.isl
+   Messages in script file
+Reading default messages from Default.isl
+Parsing [Languages] section, line 39
+   Reading file: C:\Program Files (x86)\Inno Setup 6\Languages\BrazilianPortuguese.isl
+Parsing [LangOptions], [Messages], and [CustomMessages] sections
+   Messages in script file
+Reading [Code] section
+Parsing [Tasks] section, line 72
+Parsing [Dirs] section, line 53
+Parsing [Dirs] section, line 54
+Parsing [Dirs] section, line 55
+Parsing [Dirs] section, line 56
+Parsing [Dirs] section, line 57
+Parsing [Dirs] section, line 58
+Parsing [Dirs] section, line 59
+Parsing [Dirs] section, line 60
+Parsing [Dirs] section, line 61
+Parsing [Dirs] section, line 62
+Parsing [Dirs] section, line 63
+Parsing [Dirs] section, line 64
+Parsing [Icons] section, line 67
+Parsing [Icons] section, line 68
+Parsing [Icons] section, line 69
+Parsing [Run] section, line 75
+Parsing [UninstallRun] section, line 78
+Parsing [UninstallRun] section, line 79
+Parsing [UninstallRun] section, line 80
+Parsing [UninstallRun] section, line 81
+Parsing [UninstallRun] section, line 82
+Parsing [UninstallRun] section, line 84
+Parsing [Files] section, line 42
+Parsing [Files] section, line 43
+Parsing [Files] section, line 44
+Parsing [Files] section, line 45
+Parsing [Files] section, line 46
+Parsing [Files] section, line 47
+   Reading version info: C:\xampp\htdocs\dashboard\voxel_router_desktop-1\installer\..\config\default.json
+Parsing [Files] section, line 48
+Parsing [Files] section, line 50
+   Reading version info: C:\xampp\htdocs\dashboard\voxel_router_desktop-1\installer\..\vendor\wireguard\wireguard-installer.msi
+Compiling [Code] section
+Error on line 93 in C:\xampp\htdocs\dashboard\voxel_router_desktop-1\installer\VOXEL_ROUTER_SETUP.iss: Column 13:
+Unknown identifier 'CmdLineParamExists'
+Compile aborted.
+Inno Setup falhou (exit code 2)
+No C:\xampp\htdocs\dashboard\voxel_router_desktop-1\scripts\build_windows.ps1:26 caractere:32
++ ... ASTEXITCODE -ne 0) { throw "$Step falhou (exit code $LASTEXITCODE)" }
++                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Inno Setup falhou (exit code 2):String) [], RuntimeException
+    + FullyQualifiedErrorId : Inno Setup falhou (exit code 2)
+
+FALHOU: build_windows.ps1 (veja o log)
+**********************
+Fim da transcrição do Windows PowerShell
+Hora de término: 20261119204253
+**********************

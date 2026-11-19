@@ -1,0 +1,38 @@
+==== Pre-check Thu 11/19/2026 20:36:12.38 ==== 
+[servicos] 
+[SC] EnumQueryServicesStatus:OpenService FALHA 1060:
+
+O serviáo especificado n∆o existe como serviáo instalado.
+
+[SC] EnumQueryServicesStatus:OpenService FALHA 1060:
+
+O serviáo especificado n∆o existe como serviáo instalado.
+
+[SC] EnumQueryServicesStatus:OpenService FALHA 1060:
+
+O serviáo especificado n∆o existe como serviáo instalado.
+
+[SC] EnumQueryServicesStatus:OpenService FALHA 1060:
+
+O serviáo especificado n∆o existe como serviáo instalado.
+
+[SC] EnumQueryServicesStatus:OpenService FALHA 1060:
+
+O serviáo especificado n∆o existe como serviáo instalado.
+
+[portas 4242 8042 8765 11112 104] 
+  TCP    0.0.0.0:11112          0.0.0.0:0              LISTENING       4368
+[git] 
+From https://github.com/ASOARESBH/voxel_router_desktop-1
+   a0b4c54..6c75819  feature/router-fases-5-8 -> origin/feature/router-fases-5-8
+Already on 'feature/router-fases-5-8'
+Your branch is behind 'origin/feature/router-fases-5-8' by 3 commits, and can be fast-forwarded.
+  (use "git pull" to update your local branch)
+Updating a0b4c54..6c75819
+Fast-forward
+ docs/teste-local-server-dell.md    | 19 ++++++++++++++++---
+ installer/VOXEL_ROUTER_SETUP.iss   | 31 +++++++++++++++++++++++++------
+ pyproject.toml                     |  2 +-
+ tests/test_orthanc_installation.py |  5 ++++-
+ 4 files changed, 46 insertions(+), 11 deletions(-)
+6c75819 feat(instalador): recusa instala√ß√£o nova com 4242 ou 8042 j√° ocupadas

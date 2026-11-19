@@ -1,0 +1,4 @@
+[console_scripts]
+voxel-orthanc-service = app.orthanc.service_main:run
+voxel-router = app.main:run
+voxel-router-service = app.service_main:run

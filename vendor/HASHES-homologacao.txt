@@ -1,0 +1,3 @@
+﻿Homologação local 2026-11-19T20:36:16
+Orthanc.exe 1.13.0  SHA256 2D507DF95DCABB479D3931992F5A2607CDE105DBE38B4562F43653E7CE10C424  (orthanc.uclouvain.be/downloads/windows-64/orthanc/1.13.0/)
+wireguard-amd64-1.1.msi  SHA256 6DAA5D37A9E2950DFB8C48B95AB8E562CB2BAD1C785D020F38F97BEA4C6A5566  (download.wireguard.com/windows-client/)  assinado: CN=WireGuard LLC, O=WireGuard LLC, S=Colorado, C=US, OID.2.5.4.15=Private Organization, OID.1.3.6.1.4.1.311.60.2.1.2=Ohio, OID.1.3.6.1.4.1.311.60.2.1.3=US, SERIALNUMBER=4227913
