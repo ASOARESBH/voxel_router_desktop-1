@@ -8,7 +8,7 @@ version = "1.1.0"
 description = "VOXEL Router Desktop — Secure DICOM Edge Router"
 readme = "README.md"
 requires-python = ">=3.12"
-license = {text = "Proprietary"}
+license = "LicenseRef-Proprietary"
 authors = [{name = "VOXEL"}]
 dependencies = [
   "fastapi>=0.115,<1.0",

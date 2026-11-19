@@ -79,9 +79,9 @@ Filename: "sc.exe"; Parameters: "stop {#RouterServiceName}"; Flags: runhidden wa
 Filename: "sc.exe"; Parameters: "stop {#OrthancServiceName}"; Flags: runhidden waituntilterminated
 Filename: "{app}\{#RouterServiceExeName}"; Parameters: "remove"; Flags: runhidden waituntilterminated; Check: FileExists(ExpandConstant('{app}\{#RouterServiceExeName}'))
 Filename: "{app}\{#OrthancServiceExeName}"; Parameters: "remove"; Flags: runhidden waituntilterminated; Check: FileExists(ExpandConstant('{app}\{#OrthancServiceExeName}'))
-Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=\"VOXEL Router DICOM SCP\""; Flags: runhidden waituntilterminated
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""VOXEL Router DICOM SCP"""; Flags: runhidden waituntilterminated
 ; Regra legada da 4243 (instalações anteriores à Fase 4).
-Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=\"VOXEL Orthanc DICOM\""; Flags: runhidden waituntilterminated
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""VOXEL Orthanc DICOM"""; Flags: runhidden waituntilterminated
 
 [Code]
 var
@@ -299,9 +299,9 @@ begin
     { Firewall: só 4242/TCP de entrada, perfis Domínio e Privada (nunca Pública). A regra antiga da
       4243 (Orthanc DICOM, hoje desligado) é removida, inclusive em atualizações. Remover antes de
       criar evita regra duplicada ou com perfil antigo. A falha da exclusão (regra inexistente) só é registrada. }
-    ExecuteAndCheck(ExpandConstant('{sys}\netsh.exe'), 'advfirewall firewall delete rule name=\"VOXEL Orthanc DICOM\"', 'Remover regra legada Orthanc 4243');
-    ExecuteAndCheck(ExpandConstant('{sys}\netsh.exe'), 'advfirewall firewall delete rule name=\"VOXEL Router DICOM SCP\"', 'Remover regra anterior Router 4242');
-    if not RunCritical(ExpandConstant('{sys}\netsh.exe'), 'advfirewall firewall add rule name=\"VOXEL Router DICOM SCP\" dir=in action=allow protocol=TCP localport=4242 profile=domain,private', 'Configurar firewall Router 4242 (Domínio/Privada)') then begin
+    ExecuteAndCheck(ExpandConstant('{sys}\netsh.exe'), 'advfirewall firewall delete rule name="VOXEL Orthanc DICOM"', 'Remover regra legada Orthanc 4243');
+    ExecuteAndCheck(ExpandConstant('{sys}\netsh.exe'), 'advfirewall firewall delete rule name="VOXEL Router DICOM SCP"', 'Remover regra anterior Router 4242');
+    if not RunCritical(ExpandConstant('{sys}\netsh.exe'), 'advfirewall firewall add rule name="VOXEL Router DICOM SCP" dir=in action=allow protocol=TCP localport=4242 profile=domain,private', 'Configurar firewall Router 4242 (Domínio/Privada)') then begin
       SetInstallationIncomplete();
       exit;
     end;
