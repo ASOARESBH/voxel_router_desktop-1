@@ -85,22 +85,20 @@ Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=
 
 [Code]
 var
-  InstallVerified: Boolean;
+  InstallationVerified: Boolean;
   OrthancInstallationWasValid: Boolean;
 
-function CmdLineHasSilentFlag(): Boolean;
-begin
-  Result := CmdLineParamExists('/S') or CmdLineParamExists('/VERYSILENT') or CmdLineParamExists('/SILENT');
-end;
-
+{ /SILENT e /VERYSILENT são tratados pelo próprio Inno Setup (WizardSilent()). }
 function InitializeSetup(): Boolean;
 begin
-  if CmdLineHasSilentFlag() then begin
-    WizardSilent := True;
-    Silent := True;
-  end;
-  InstallVerified := False;
+  InstallationVerified := False;
   Result := True;
+end;
+
+{ Usado em [Run] Check: o Dashboard só abre se a instalação foi verificada. }
+function InstallVerified(): Boolean;
+begin
+  Result := InstallationVerified;
 end;
 
 function ExecuteAndCheck(const Filename, Parameters, Description: String): Boolean;
@@ -222,7 +220,7 @@ end;
 
 procedure SetInstallationIncomplete();
 begin
-  InstallVerified := False;
+  InstallationVerified := False;
   WizardForm.FinishedLabel.Caption :=
     'A instalação requer diagnóstico adicional. O Dashboard não será aberto automaticamente. ' +
     'Use o atalho Diagnóstico de instalação depois de corrigir a falha do componente informado.';
@@ -329,7 +327,7 @@ begin
       SetInstallationIncomplete();
       exit;
     end;
-    InstallVerified := True;
+    InstallationVerified := True;
   end;
 end;
 
