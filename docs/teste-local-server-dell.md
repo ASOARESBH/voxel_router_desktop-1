@@ -58,10 +58,10 @@ Num PowerShell separado, deixe rodando:
 
 ```powershell
 cd C:\xampp\htdocs\dashboard\voxel_router_desktop-1
-.\.venv-test\Scripts\python.exe scripts\fake_voxel_destination.py --port 11113 --ae VOXEL_TESTE --calling-ae VXTESTE_RT
+.\.venv-test\Scripts\python.exe scripts\fake_voxel_destination.py --port 11190 --ae VOXEL_TESTE --calling-ae VXTESTE_RT
 ```
 
-No Router: **VOXEL Cloud e destinos → ADICIONAR DESTINO** → DICOM, AE `VOXEL_TESTE`, host `127.0.0.1`, porta `11113` (a 11112 já está ocupada nesta máquina)
+No Router: **VOXEL Cloud e destinos → ADICIONAR DESTINO** → DICOM, AE `VOXEL_TESTE`, host `127.0.0.1`, porta `11190` (11112 e 11113 já estão ocupadas nesta máquina)
 → nasce PAUSADO → **TESTAR C-ECHO** (a janela do destino mostra "C-ECHO recebido") → **HABILITAR**.
 
 ## 5. Envio fim a fim
