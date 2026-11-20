@@ -12,7 +12,7 @@ echo [git] >> "%LOG%"
 git fetch origin >> "%LOG%" 2>&1
 if errorlevel 1 goto falhou
 for /f %%H in ('git rev-parse --short HEAD') do set ANTES=%%H
-git branch -f backup-local-build feature/router-fases-5-8 >> "%LOG%" 2>&1
+git update-ref refs/heads/backup-local-build refs/heads/feature/router-fases-5-8 >> "%LOG%" 2>&1
 echo HEAD antes: %ANTES% (branch local anterior salva em backup-local-build) >> "%LOG%"
 git checkout -f -B feature/router-fases-5-8 origin/feature/router-fases-5-8 >> "%LOG%" 2>&1
 if errorlevel 1 goto falhou
