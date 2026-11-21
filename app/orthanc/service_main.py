@@ -63,10 +63,9 @@ def run() -> None:
         return
     if platform.system() == "Windows":
         try:
-            import win32serviceutil  # type: ignore[import-not-found]
+            from app.core.windows_service import handle_service_command_line
 
-            win32serviceutil.HandleCommandLine(VoxelOrthancService)
-            return
+            raise SystemExit(handle_service_command_line(VoxelOrthancService))
         except ImportError as exc:
             raise RuntimeError("pywin32 é obrigatório para hospedar o serviço VOXEL Orthanc") from exc
 

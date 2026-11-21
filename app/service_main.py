@@ -42,10 +42,9 @@ async def _run_router_service(stop_event: threading.Event) -> None:
 def run() -> None:
     if platform.system() == "Windows":
         try:
-            import win32serviceutil  # type: ignore[import-not-found]
+            from app.core.windows_service import handle_service_command_line
 
-            win32serviceutil.HandleCommandLine(VoxelRouterService)
-            return
+            raise SystemExit(handle_service_command_line(VoxelRouterService))
         except ImportError:
             LOGGER.warning("pywin32_unavailable_running_foreground")
     stop_event = threading.Event()
