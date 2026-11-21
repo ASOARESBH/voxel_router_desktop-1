@@ -6,3 +6,4 @@
 *.ico binary
 *.msi binary
 *.exe binary
+*.sh text eol=lf

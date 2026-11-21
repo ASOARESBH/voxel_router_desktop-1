@@ -2,18 +2,34 @@
 # Componentes de terceiros homologados (nunca baixados pelo build):
 #   vendor\orthanc\Orthanc.exe (+ plugins)           -> -OrthancSha256 <sha256 do Orthanc.exe>
 #   vendor\wireguard\wireguard-installer.msi (amd64)  -> -WireGuardSha256 <sha256 do MSI>
-# Uso: powershell -ExecutionPolicy Bypass -File .\scripts\build_windows.ps1 -OrthancSha256 <hash> -WireGuardSha256 <hash> [-Version 1.1.0]
+# Uso: powershell -ExecutionPolicy Bypass -File .\scripts\build_windows.ps1 -OrthancSha256 <hash> -WireGuardSha256 <hash> [-Release]
+# Versão: arquivo VERSION. Saída: dist\VOXEL_ROUTER_SETUP_<versão>.exe + .sha256 + build-info.txt
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][ValidatePattern('^[A-Fa-f0-9]{64}$')][string]$OrthancSha256,
     [Parameter(Mandatory = $true)][ValidatePattern('^[A-Fa-f0-9]{64}$')][string]$WireGuardSha256,
-    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.1.0',
+    [switch]$Release,
     [switch]$SkipInstaller
 )
 
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
+
+# Versão única no arquivo VERSION (versionado no git). -Release exige árvore limpa e tag v<versão> no HEAD.
+$Version = (Get-Content -Raw (Join-Path $Root 'VERSION')).Trim()
+if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw "VERSION inválido: '$Version'" }
+# git escreve avisos no stderr; no PowerShell 5.1 isso viraria exceção com 'Stop'.
+$ErrorActionPreference = 'Continue'
+$GitSha = (git rev-parse --short=12 HEAD 2>$null)
+$GitDirty = [bool](git status --porcelain --untracked-files=no 2>$null)
+$tag = (git describe --tags --exact-match HEAD 2>$null)
+$ErrorActionPreference = 'Stop'
+if ($Release) {
+    if ($GitDirty) { throw 'Build de release exige árvore git limpa (git status).' }
+    if ($tag -ne "v$Version") { throw "Build de release exige a tag v$Version no commit atual (encontrado: '$tag'). Crie com: git tag v$Version; git push origin v$Version" }
+}
+Write-Host "Versão $Version · commit $GitSha$(if ($GitDirty) { ' (com alterações locais)' })"
 
 # Comandos nativos não disparam exceção no PowerShell: todo exit code diferente de 0 interrompe o build.
 function Invoke-Checked {
@@ -72,10 +88,21 @@ $iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "${env:ProgramFiles}
 if (-not $iscc) { throw 'Inno Setup 6 não encontrado.' }
 Invoke-Checked 'Inno Setup' { & $iscc "/DAppVersion=$Version" installer\VOXEL_ROUTER_SETUP.iss }
 
-$setup = Join-Path $Root 'dist\VOXEL_ROUTER_SETUP.exe'
-if (-not (Test-Path $setup -PathType Leaf)) { throw 'dist\VOXEL_ROUTER_SETUP.exe não foi gerado.' }
+$setupName = "VOXEL_ROUTER_SETUP_$Version.exe"
+$setup = Join-Path $Root "dist\$setupName"
+if (-not (Test-Path $setup -PathType Leaf)) { throw "dist\$setupName não foi gerado." }
 $hash = (Get-FileHash -Algorithm SHA256 -Path $setup).Hash
-"$hash  VOXEL_ROUTER_SETUP.exe  versão $Version" | Out-File -Encoding ascii dist\VOXEL_ROUTER_SETUP.exe.sha256
+"$hash  $setupName" | Out-File -Encoding ascii "dist\$setupName.sha256"
+@(
+    "versao=$Version",
+    "commit=$GitSha",
+    "alteracoes_locais=$GitDirty",
+    "release=$([bool]$Release)",
+    "gerado_em=$(Get-Date -Format s)",
+    "orthanc_sha256=$OrthancSha256",
+    "wireguard_msi_sha256=$WireGuardSha256",
+    "setup_sha256=$hash"
+) | Out-File -Encoding ascii dist\build-info.txt
 Write-Host "Build concluído: $setup"
 Write-Host "SHA-256: $hash"
 Write-Host 'Setup NÃO assinado: uso restrito a laboratório/piloto (SmartScreen vai alertar).'

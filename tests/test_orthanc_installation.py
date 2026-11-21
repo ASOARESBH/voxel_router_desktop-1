@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -87,7 +88,7 @@ def test_installer_contract_packages_and_starts_independent_components() -> None
     installer = (PROJECT_ROOT / "installer" / "VOXEL_ROUTER_SETUP.iss").read_text(encoding="utf-8")
     build = (PROJECT_ROOT / "scripts" / "build_windows.ps1").read_text(encoding="utf-8")
 
-    assert 'OutputBaseFilename=VOXEL_ROUTER_SETUP' in installer
+    assert "OutputBaseFilename=VOXEL_ROUTER_SETUP_{#AppVersion}" in installer
     assert 'Source: "..\\dist\\VOXELRouterService\\*"' in installer
     assert 'Source: "..\\dist\\VOXELOrthancService\\*"' in installer
     assert 'Source: "..\\vendor\\orthanc\\*"; DestDir: "{app}\\orthanc"' in installer
@@ -103,7 +104,7 @@ def test_installer_contract_packages_and_starts_independent_components() -> None
     assert "Nenhum diretório em ProgramData é removido" in installer
     assert "function OrthancInstallationIsValid" in installer
     assert "OrthancInstallationWasValid" in installer
-    assert "Check: not OrthancInstallationWasValid" in installer
+    assert "Check: ShouldCopyOrthancBinary" in installer
     assert "Orthanc válido detectado" in installer
     assert "--install --name" not in installer
     assert '--name VOXELOrthancService' in build
@@ -174,3 +175,25 @@ def test_installer_firewall_opens_only_4242_on_domain_private_and_removes_4243()
     assert "config\\orthanc.json')) then begin" not in installer
     assert "'--configure', 'Configurar Orthanc'" in installer
     assert "'restart', 'Reiniciar VOXEL Orthanc'" in installer
+
+
+def test_single_version_source_matches_everywhere():
+    import tomllib
+
+    from app.config.settings import APP_VERSION
+
+    version = (PROJECT_ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    pyproject = tomllib.loads((PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+    installer = (PROJECT_ROOT / "installer" / "VOXEL_ROUTER_SETUP.iss").read_text(encoding="utf-8-sig")
+    assert version == APP_VERSION == pyproject
+    assert f'#define AppVersion "{version}"' in installer
+
+
+def test_installer_checks_are_functions_not_expressions():
+    installer = (PROJECT_ROOT / "installer" / "VOXEL_ROUTER_SETUP.iss").read_text(encoding="utf-8-sig")
+    checks = re.findall(r"Check:\s*([^;\r\n]+)", installer.split("[Code]")[0])
+    assert checks, "esperava entradas com Check:"
+    for check in checks:
+        name = check.strip()
+        assert re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name), f"Check deve ser só o nome de uma função: {name}"
+        assert re.search(rf"function {name}\(\): Boolean;", installer), f"função {name} ausente no [Code]"

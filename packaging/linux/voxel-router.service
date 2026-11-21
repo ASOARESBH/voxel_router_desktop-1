@@ -1,0 +1,24 @@
+[Unit]
+Description=VOXEL Router (gateway DICOM)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=voxel-router
+Group=voxel-router
+EnvironmentFile=/etc/voxel-router/router.env
+WorkingDirectory=/opt/voxel-router/src
+ExecStart=/opt/voxel-router/venv/bin/python -m app.main
+Restart=always
+RestartSec=10
+# Endurecimento: só escreve nos dados do Router.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/voxel-router
+ReadOnlyPaths=/etc/voxel-router
+
+[Install]
+WantedBy=multi-user.target

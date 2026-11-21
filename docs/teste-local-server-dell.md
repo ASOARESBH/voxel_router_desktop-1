@@ -21,7 +21,7 @@ O script:
 1. confere Python 3.12 e Inno Setup 6 (se faltar, mostra o `winget install` correspondente);
 2. baixa o **Orthanc 1.13.0** oficial (`orthanc.uclouvain.be`) e o **WireGuard 1.1** MSI oficial (`download.wireguard.com`), confere a assinatura do MSI e mostra os SHA-256 — responda **S** para aprovar;
 3. roda `ruff` e `pytest` no Windows;
-4. gera `dist\VOXEL_ROUTER_SETUP.exe` e `dist\VOXEL_ROUTER_SETUP.exe.sha256`.
+4. gera `dist\VOXEL_ROUTER_SETUP_<versão>.exe`, o `.sha256` e `dist\build-info.txt` (veja `docs/build-e-versionamento.md`).
 
 Log completo: `logs-local\build-local-<data>.log`. Os hashes aprovados ficam em `vendor\HASHES-homologacao.txt`.
 
@@ -40,7 +40,7 @@ Ao terminar os testes (passo 8), devolva: `sc.exe config Orthanc start= auto; sc
 
 ## 2b. Instalar
 
-Clique com o botão direito em `dist\VOXEL_ROUTER_SETUP.exe` → Executar como administrador
+Clique com o botão direito em `dist\VOXEL_ROUTER_SETUP_1.1.0.exe` → Executar como administrador
 (o SmartScreen avisa porque o setup não é assinado: "Mais informações" → "Executar assim mesmo").
 
 **Aceite:** o setup termina sem "requer diagnóstico"; `sc query VOXELRouter` e `sc query VOXELOrthanc` = RUNNING;

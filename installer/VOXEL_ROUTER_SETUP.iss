@@ -24,7 +24,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog commandline
 OutputDir=..\dist
-OutputBaseFilename=VOXEL_ROUTER_SETUP
+OutputBaseFilename=VOXEL_ROUTER_SETUP_{#AppVersion}
 SetupIconFile=..\frontend\static\img\router.ico
 UninstallDisplayIcon={app}\{#RouterExeName}
 Compression=lzma2/ultra64
@@ -43,7 +43,7 @@ Source: "..\dist\VOXELRouter\*"; DestDir: "{app}"; Flags: recursesubdirs ignorev
 Source: "..\dist\VOXELRouterService\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 Source: "..\dist\VOXELOrthancService\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 Source: "..\dist\VOXELDiagnostics\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
-Source: "..\vendor\orthanc\*"; DestDir: "{app}\orthanc"; Flags: recursesubdirs ignoreversion; Check: not OrthancInstallationWasValid
+Source: "..\vendor\orthanc\*"; DestDir: "{app}\orthanc"; Flags: recursesubdirs ignoreversion; Check: ShouldCopyOrthancBinary
 Source: "..\config\default.json"; DestDir: "{commonappdata}\VOXEL\Router\config"; DestName: "router.json"; Flags: onlyifdoesntexist
 Source: "..\frontend\static\img\router.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
 ; WireGuard for Windows oficial: instalado só se ainda não existir; nunca removido na desinstalação.
@@ -77,8 +77,8 @@ Filename: "http://127.0.0.1:8765"; Description: "Abrir Dashboard do VOXEL Router
 [UninstallRun]
 Filename: "sc.exe"; Parameters: "stop {#RouterServiceName}"; Flags: runhidden waituntilterminated
 Filename: "sc.exe"; Parameters: "stop {#OrthancServiceName}"; Flags: runhidden waituntilterminated
-Filename: "{app}\{#RouterServiceExeName}"; Parameters: "remove"; Flags: runhidden waituntilterminated; Check: FileExists(ExpandConstant('{app}\{#RouterServiceExeName}'))
-Filename: "{app}\{#OrthancServiceExeName}"; Parameters: "remove"; Flags: runhidden waituntilterminated; Check: FileExists(ExpandConstant('{app}\{#OrthancServiceExeName}'))
+Filename: "{app}\{#RouterServiceExeName}"; Parameters: "remove"; Flags: runhidden waituntilterminated; Check: RouterServiceExeExists
+Filename: "{app}\{#OrthancServiceExeName}"; Parameters: "remove"; Flags: runhidden waituntilterminated; Check: OrthancServiceExeExists
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""VOXEL Router DICOM SCP"""; Flags: runhidden waituntilterminated
 ; Regra legada da 4243 (instalações anteriores à Fase 4).
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""VOXEL Orthanc DICOM"""; Flags: runhidden waituntilterminated
@@ -95,10 +95,26 @@ begin
   Result := True;
 end;
 
-{ Usado em [Run] Check: o Dashboard só abre se a instalação foi verificada. }
+{ Funções usadas em Check: (o Inno exige função sem expressão; variável não vale). }
 function InstallVerified(): Boolean;
 begin
   Result := InstallationVerified;
+end;
+
+{ Orthanc já válido é preservado (binário, storage e senha interna). }
+function ShouldCopyOrthancBinary(): Boolean;
+begin
+  Result := not OrthancInstallationWasValid;
+end;
+
+function RouterServiceExeExists(): Boolean;
+begin
+  Result := FileExists(ExpandConstant('{app}\{#RouterServiceExeName}'));
+end;
+
+function OrthancServiceExeExists(): Boolean;
+begin
+  Result := FileExists(ExpandConstant('{app}\{#OrthancServiceExeName}'));
 end;
 
 function ExecuteAndCheck(const Filename, Parameters, Description: String): Boolean;

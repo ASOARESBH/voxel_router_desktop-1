@@ -1,0 +1,12 @@
+# VOXEL VPN no Linux (wg-quick). Copie para /etc/wireguard/voxelvpn.conf (0600, root) e preencha com o kit.
+# Gere a chave NESTA máquina:  umask 077; wg genkey | tee /etc/wireguard/voxelvpn.key | wg pubkey
+# Envie ao VOXEL somente a chave pública. Depois: systemctl enable --now wg-quick@voxelvpn
+[Interface]
+PrivateKey = <conteúdo de /etc/wireguard/voxelvpn.key>
+Address = <endereço do kit, ex. 10.200.10.10/32>
+
+[Peer]
+PublicKey = <chave pública do concentrador VOXEL (kit)>
+Endpoint = <endpoint do kit, host:porta>
+AllowedIPs = <AllowedIPs do kit, ex. 10.200.10.1/32>
+PersistentKeepalive = 25

@@ -83,8 +83,8 @@ try {
     if ((Native 'powershell' @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $build, '-OrthancSha256', $orthancHash, '-WireGuardSha256', $msiHash)) -ne 0) { Fail 'build_windows.ps1 (veja o log)' }
 
     Step 'Concluído'
-    Get-Content dist\VOXEL_ROUTER_SETUP.exe.sha256
-    Write-Host "Instalador: $Root\dist\VOXEL_ROUTER_SETUP.exe"
+    Get-Content dist\build-info.txt
+    Get-ChildItem dist\VOXEL_ROUTER_SETUP_*.exe | ForEach-Object { Write-Host "Instalador: $($_.FullName)" }
     Write-Host 'Próximo passo: docs\teste-local-server-dell.md'
 } catch {
     Write-Host $_.Exception.Message -ForegroundColor Red

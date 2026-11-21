@@ -234,3 +234,16 @@ def test_api_requires_authentication(settings, database):
 def test_paths_are_absolute_windows_paths():
     for path in (wireguard.WIREGUARD_EXE, wireguard.WG_EXE, wireguard.SC_EXE, wireguard.ICACLS_EXE):
         assert path.is_absolute()
+
+
+def test_linux_secret_key_file_is_used(settings, tmp_path, monkeypatch):
+    if os.name == "nt":
+        pytest.skip("DPAPI no Windows")
+    key_file = tmp_path / "secret.key"
+    key_file.write_text(create_development_key(), encoding="ascii")
+    monkeypatch.delenv("VOXEL_ROUTER_DEV_SECRET_KEY", raising=False)
+    monkeypatch.setenv("VOXEL_ROUTER_SECRET_KEY_FILE", str(key_file))
+    store = WindowsSecretStore(settings.paths)
+    store.put("teste", "valor")
+    assert store.get("teste") == "valor"
+    assert b"valor" not in store.path.read_bytes()

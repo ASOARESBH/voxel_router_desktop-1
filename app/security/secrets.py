@@ -5,6 +5,8 @@ from __future__ import annotations
 import base64
 import os
 import platform
+from pathlib import Path
+
 from cryptography.fernet import Fernet
 
 from app.config.settings import AppPaths
@@ -69,10 +71,7 @@ class WindowsSecretStore:
                 return win32crypt.CryptProtectData(payload, "VOXEL Router", None, None, None, flags)
             except ImportError as exc:
                 raise SecretStoreError("DPAPI indisponível; instale o componente de serviço Windows") from exc
-        if os.getenv("VOXEL_ROUTER_DEV_SECRET_KEY"):
-            key = os.environ["VOXEL_ROUTER_DEV_SECRET_KEY"].encode("ascii")
-            return Fernet(key).encrypt(payload)
-        raise SecretStoreError("Fora do Windows, defina VOXEL_ROUTER_DEV_SECRET_KEY apenas para desenvolvimento")
+        return Fernet(_linux_key()).encrypt(payload)
 
     @staticmethod
     def _unprotect(payload: bytes) -> bytes:
@@ -82,10 +81,24 @@ class WindowsSecretStore:
                 return win32crypt.CryptUnprotectData(payload, None, None, None, 0)[1]
             except ImportError as exc:
                 raise SecretStoreError("DPAPI indisponível; instale o componente de serviço Windows") from exc
-        if os.getenv("VOXEL_ROUTER_DEV_SECRET_KEY"):
-            key = os.environ["VOXEL_ROUTER_DEV_SECRET_KEY"].encode("ascii")
-            return Fernet(key).decrypt(payload)
-        raise SecretStoreError("Fora do Windows, defina VOXEL_ROUTER_DEV_SECRET_KEY apenas para desenvolvimento")
+        return Fernet(_linux_key()).decrypt(payload)
+
+
+def _linux_key() -> bytes:
+    """Chave Fernet fora do Windows.
+
+    Instalação Linux: arquivo indicado em VOXEL_ROUTER_SECRET_KEY_FILE (0600, dono = usuário do
+    serviço, criado pelo install.sh). VOXEL_ROUTER_DEV_SECRET_KEY só para desenvolvimento/testes.
+    """
+    key_file = os.getenv("VOXEL_ROUTER_SECRET_KEY_FILE")
+    if key_file:
+        try:
+            return Path(key_file).read_text(encoding="ascii").strip().encode("ascii")
+        except OSError as exc:
+            raise SecretStoreError("Arquivo de chave do cofre ilegível (VOXEL_ROUTER_SECRET_KEY_FILE)") from exc
+    if os.getenv("VOXEL_ROUTER_DEV_SECRET_KEY"):
+        return os.environ["VOXEL_ROUTER_DEV_SECRET_KEY"].encode("ascii")
+    raise SecretStoreError("Fora do Windows, defina VOXEL_ROUTER_SECRET_KEY_FILE (instalação) ou VOXEL_ROUTER_DEV_SECRET_KEY (desenvolvimento)")
 
 
 def create_development_key() -> str:
