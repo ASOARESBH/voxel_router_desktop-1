@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
+from app.auth.recovery import PasswordRecoveryService, RecoveryError, RecoveryUnavailableError, load_public_keys
 from app.auth.service import AccountLockedError, AuthenticationError, AuthenticationService
 from app.cloud.connectors import CloudConnectorError, echo_target, echo_verified, outbound_ae_title
 from app.config.settings import APP_VERSION
@@ -44,6 +45,15 @@ class ProvisionRequest(BaseModel):
 
 class PasswordChangeRequest(BaseModel):
     current_password: str = Field(min_length=1, max_length=512)
+    new_password: str = Field(min_length=12, max_length=512)
+
+
+class RecoveryRequestPayload(BaseModel):
+    username: str = Field(default="voxeladmin", min_length=3, max_length=64)
+
+
+class RecoveryCompletePayload(BaseModel):
+    response_code: str = Field(min_length=10, max_length=256)
     new_password: str = Field(min_length=12, max_length=512)
 
 
@@ -176,6 +186,7 @@ def create_app(engine: RouterEngine | None = None, start_engine: bool = False) -
     database = current_engine.database
     settings = current_engine.settings
     auth = AuthenticationService(database, int(settings.get("api", "session_minutes", default=30)))
+    recovery = PasswordRecoveryService(database, auth, str(settings.get("system", "router_id", default="")), load_public_keys())
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -254,6 +265,29 @@ def create_app(engine: RouterEngine | None = None, start_engine: bool = False) -
     @app.get("/api/auth/bootstrap-status")
     async def bootstrap_status() -> dict[str, Any]:
         return {"provisioned": auth.has_administrator(), "version": APP_VERSION}
+
+    @app.get("/api/auth/recovery")
+    async def recovery_status() -> dict[str, Any]:
+        return {"configured": recovery.configured}
+
+    @app.post("/api/auth/recovery/request", status_code=status.HTTP_201_CREATED)
+    async def recovery_request(payload: RecoveryRequestPayload, request: Request) -> dict[str, Any]:
+        try:
+            return recovery.create_request(payload.username, client_ip(request))
+        except RecoveryUnavailableError as exc:
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
+        except RecoveryError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+
+    @app.post("/api/auth/recovery/complete")
+    async def recovery_complete(payload: RecoveryCompletePayload, request: Request) -> dict[str, str]:
+        try:
+            username = recovery.complete(payload.response_code, payload.new_password, client_ip(request))
+        except RecoveryUnavailableError as exc:
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
+        except (RecoveryError, ValueError) as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+        return {"username": username, "message": "Senha redefinida. Entre com a nova senha; a troca será exigida no primeiro acesso."}
 
     @app.post("/api/auth/provision", status_code=status.HTTP_201_CREATED)
     async def provision(payload: ProvisionRequest, request: Request) -> dict[str, str]:

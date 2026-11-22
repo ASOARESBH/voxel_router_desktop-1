@@ -50,8 +50,8 @@ class AuthenticationService:
         rows = self.database.query_all("SELECT username, is_active, must_change_password FROM users ORDER BY id")
         return [dict(row) for row in rows]
 
-    def reset_password_local(self, username: str, new_password: str) -> None:
-        """Redefine a senha por acesso administrativo local ao equipamento (sem senha atual)."""
+    def reset_password_local(self, username: str, new_password: str, action: str = "RESET_PASSWORD_LOCAL", source_ip: str = "local-console") -> None:
+        """Redefine a senha sem a senha atual: console local ou código assinado pela VOXEL."""
         normalized = self._validate_username(username)
         self._validate_password(new_password)
         with self.database.transaction() as connection:
@@ -65,7 +65,7 @@ class AuthenticationService:
             )
             connection.execute("UPDATE sessions SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ? AND revoked_at IS NULL", (user_id,))
             connection.execute("DELETE FROM auth_attempts WHERE username = ? AND success = 0", (normalized,))
-        self.audit(user_id, "RESET_PASSWORD_LOCAL", "USER", str(user_id), "local-console", "SUCCESS")
+        self.audit(user_id, action, "USER", str(user_id), source_ip, "SUCCESS")
 
     def login(self, username: str, password: str, source_ip: str = "127.0.0.1") -> dict[str, Any]:
         normalized = username.strip().lower()

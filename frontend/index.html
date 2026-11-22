@@ -39,6 +39,34 @@
           <label>Senha<div class="password-field"><input id="password" type="password" autocomplete="current-password" required><button id="toggle-password" type="button" class="text-button">Mostrar</button></div></label>
           <button type="submit" class="primary">ENTRAR</button>
         </form>
+        <button id="open-recovery" type="button" class="text-button">Esqueci a senha</button>
+      </div>
+      <div id="recovery-form" hidden>
+        <p class="eyebrow">RECUPERAÇÃO DE ACESSO</p>
+        <h1>Esqueci a senha</h1>
+        <p id="recovery-unavailable" class="helper" hidden>Recuperação por e-mail ainda não configurada neste equipamento. Um administrador do Windows pode redefinir a senha com <code>VOXELResetAdmin.exe</code> (pasta de instalação do Router).</p>
+        <div id="recovery-steps">
+          <p>1. Gere o pedido e envie ao suporte VOXEL (<strong>admin@voxelpacs.com.br</strong>). A VOXEL confirma sua identidade e responde com um código.</p>
+          <form id="form-recovery-request">
+            <label>Usuário<input id="recovery-username" value="voxeladmin" autocomplete="username" required></label>
+            <button type="submit" class="secondary">GERAR PEDIDO</button>
+          </form>
+          <div id="recovery-request-result" hidden>
+            <label>Código do pedido<textarea id="recovery-request-code" rows="3" readonly></textarea></label>
+            <p class="helper">Válido até <span id="recovery-expires"></span>.</p>
+            <a id="recovery-mailto" class="primary button-link" href="#">ENVIAR E-MAIL PARA A VOXEL</a>
+            <button id="recovery-copy" type="button" class="secondary">COPIAR PEDIDO</button>
+          </div>
+          <p>2. Recebeu o código de resposta? Defina a nova senha:</p>
+          <form id="form-recovery-complete">
+            <input class="sr-only" type="text" name="username" autocomplete="username" tabindex="-1" aria-hidden="true">
+            <label>Código de resposta<textarea id="recovery-response" rows="3" required></textarea></label>
+            <label>Nova senha<input id="recovery-password" type="password" autocomplete="new-password" minlength="12" required></label>
+            <label>Confirmar nova senha<input id="recovery-confirm" type="password" autocomplete="new-password" minlength="12" required></label>
+            <button type="submit" class="primary">REDEFINIR SENHA</button>
+          </form>
+        </div>
+        <button id="close-recovery" type="button" class="text-button">Voltar ao login</button>
       </div>
       <p id="login-message" class="form-message" role="alert"></p>
       <footer>VOXEL ROUTER <span id="app-version"></span> · Interface local protegida</footer>

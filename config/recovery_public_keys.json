@@ -1,0 +1,4 @@
+{
+  "_comentario": "Somente chaves PÚBLICAS Ed25519 da VOXEL para recuperação de senha. A privada nunca entra no repositório. Gerar com scripts/voxel_recovery_tool.py gerar-chave.",
+  "keys": []
+}

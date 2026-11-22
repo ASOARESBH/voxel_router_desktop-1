@@ -8,7 +8,7 @@ from typing import Any, Iterator
 
 from app.config.settings import AppPaths
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 SCHEMA = """
 PRAGMA foreign_keys = ON;
@@ -276,6 +276,19 @@ CREATE TABLE IF NOT EXISTS dicom_access_attempts (
 
 INSERT OR IGNORE INTO schema_migrations(version) VALUES (3);
 INSERT OR IGNORE INTO schema_migrations(version) VALUES (4);
+
+-- v6: pedidos de recuperação de senha por código assinado pela VOXEL (sem segredo no equipamento).
+CREATE TABLE IF NOT EXISTS password_recovery_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id TEXT NOT NULL UNIQUE,
+    request_code TEXT NOT NULL,
+    username TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    used_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_password_recovery_open ON password_recovery_requests(used_at, expires_at);
+INSERT OR IGNORE INTO schema_migrations(version) VALUES (6);
 """
 
 # v5: resultado do último C-ECHO por destino. `echo_target` guarda a identidade testada

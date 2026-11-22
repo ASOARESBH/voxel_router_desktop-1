@@ -94,6 +94,7 @@
     $('#auth-checking').hidden = true;
     $('#provision-form').hidden = provisioned;
     $('#auth-form').hidden = !provisioned;
+    $('#recovery-form').hidden = true;
     scrollToTop();
     if (provisioned) $('#username').focus();
   }
@@ -422,6 +423,39 @@
         renderAuthScreen(true);
         showMessage('Usuário ou senha inválidos.');
       }
+    });
+    $('#open-recovery').addEventListener('click', async () => {
+      $('#login-message').textContent = '';
+      $('#auth-form').hidden = true;
+      $('#recovery-form').hidden = false;
+      const status = await api('/api/auth/recovery').catch(() => ({ configured: false }));
+      $('#recovery-unavailable').hidden = status.configured;
+      $('#recovery-steps').hidden = !status.configured;
+    });
+    $('#close-recovery').addEventListener('click', () => renderAuthScreen(true));
+    $('#form-recovery-request').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try {
+        const result = await api('/api/auth/recovery/request', { method: 'POST', body: JSON.stringify({ username: $('#recovery-username').value }) });
+        $('#recovery-request-code').value = result.request_code;
+        $('#recovery-expires').textContent = result.expires_at;
+        $('#recovery-mailto').href = result.mailto;
+        $('#recovery-request-result').hidden = false;
+        showMessage('Pedido gerado. Envie o e-mail; se o programa de e-mail não abrir, copie o pedido e envie para admin@voxelpacs.com.br.', false);
+      } catch (error) { showMessage(error.message); }
+    });
+    $('#recovery-copy').addEventListener('click', () => navigator.clipboard.writeText($('#recovery-request-code').value).then(() => showMessage('Pedido copiado.', false)));
+    $('#form-recovery-complete').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const password = $('#recovery-password').value;
+      if (password !== $('#recovery-confirm').value) return showMessage('As senhas informadas não coincidem.');
+      try {
+        const result = await api('/api/auth/recovery/complete', { method: 'POST', body: JSON.stringify({ response_code: $('#recovery-response').value, new_password: password }) });
+        event.target.reset();
+        renderAuthScreen(true);
+        $('#username').value = result.username;
+        showMessage(result.message, false);
+      } catch (error) { showMessage(error.message); }
     });
     $('#toggle-password').addEventListener('click', () => { const field = $('#password'); field.type = field.type === 'password' ? 'text' : 'password'; $('#toggle-password').textContent = field.type === 'password' ? 'Mostrar' : 'Ocultar'; });
     $('#force-password-form').addEventListener('submit', async (event) => {
