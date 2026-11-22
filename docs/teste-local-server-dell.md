@@ -104,3 +104,17 @@ preservado; WireGuard continua instalado; pergunta sobre o túnel só aparece se
 
 Registrar cada passo como OK/FALHA com o código mostrado na UI. Com 1–7 OK, o instalador está pronto para a clínica
 (`docs/homologacao-H1-H5.md`).
+
+## Recuperar o acesso administrativo
+
+O primeiro administrador é criado na tela inicial com o usuário padrão `voxeladmin`.
+Se a senha for perdida, no próprio equipamento, em PowerShell **como Administrador**:
+
+```powershell
+& "C:\Program Files\VOXEL\Router\VOXELResetAdmin.exe" --list
+& "C:\Program Files\VOXEL\Router\VOXELResetAdmin.exe" --username voxeladmin
+```
+
+A nova senha é digitada sem eco, não vai para logs, encerra as sessões abertas, limpa o
+bloqueio por tentativas e exige troca no próximo login. A ação fica em `audit_logs`
+como `RESET_PASSWORD_LOCAL`.

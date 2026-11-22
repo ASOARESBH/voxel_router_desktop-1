@@ -112,6 +112,8 @@
 
   async function verifyBootstrap() {
     const bootstrap = await api('/api/auth/bootstrap-status');
+    const versionLabel = document.getElementById('app-version');
+    if (versionLabel && bootstrap.version) versionLabel.textContent = `v${bootstrap.version}`;
     renderAuthScreen(bootstrap.provisioned);
   }
 

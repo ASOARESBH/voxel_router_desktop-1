@@ -40,3 +40,29 @@ def test_failed_logins_are_limited(auth):
             auth.login("voxeladmin", "SenhaErrada@2026", "127.0.0.1")
     with pytest.raises(AccountLockedError):
         auth.login("voxeladmin", "SenhaInicial@2026", "127.0.0.1")
+
+
+def test_local_reset_unlocks_revokes_sessions_and_requires_change(database, auth):
+    user_id = auth.provision_administrator("voxeladmin", "SenhaInicial@2026")
+    auth.change_password(user_id, "SenhaInicial@2026", "SenhaEsquecida@2026")
+    old_session = auth.login("voxeladmin", "SenhaEsquecida@2026")
+    for _ in range(5):
+        with pytest.raises(AuthenticationError):
+            auth.login("voxeladmin", "SenhaErrada@2026")
+
+    auth.reset_password_local("VoxelAdmin", "SenhaRecuperada@2026")
+
+    assert auth.current_user(old_session["token"]) is None
+    session = auth.login("voxeladmin", "SenhaRecuperada@2026")
+    assert session["must_change_password"] is True
+    audit = database.query_one("SELECT action, source_ip FROM audit_logs WHERE action = 'RESET_PASSWORD_LOCAL'")
+    assert audit["source_ip"] == "local-console"
+
+
+def test_local_reset_rejects_unknown_user_and_weak_password(auth):
+    auth.provision_administrator("voxeladmin", "SenhaInicial@2026")
+    with pytest.raises(ValueError):
+        auth.reset_password_local("outro", "SenhaRecuperada@2026")
+    with pytest.raises(ValueError):
+        auth.reset_password_local("voxeladmin", "fraca")
+    assert [user["username"] for user in auth.list_usernames()] == ["voxeladmin"]

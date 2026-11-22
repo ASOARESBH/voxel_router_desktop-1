@@ -252,8 +252,8 @@ def create_app(engine: RouterEngine | None = None, start_engine: bool = False) -
         return current_engine.health.storage()
 
     @app.get("/api/auth/bootstrap-status")
-    async def bootstrap_status() -> dict[str, bool]:
-        return {"provisioned": auth.has_administrator()}
+    async def bootstrap_status() -> dict[str, Any]:
+        return {"provisioned": auth.has_administrator(), "version": APP_VERSION}
 
     @app.post("/api/auth/provision", status_code=status.HTTP_201_CREATED)
     async def provision(payload: ProvisionRequest, request: Request) -> dict[str, str]:

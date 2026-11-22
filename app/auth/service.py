@@ -46,6 +46,27 @@ class AuthenticationService:
             )
             return int(cursor.lastrowid)
 
+    def list_usernames(self) -> list[dict[str, Any]]:
+        rows = self.database.query_all("SELECT username, is_active, must_change_password FROM users ORDER BY id")
+        return [dict(row) for row in rows]
+
+    def reset_password_local(self, username: str, new_password: str) -> None:
+        """Redefine a senha por acesso administrativo local ao equipamento (sem senha atual)."""
+        normalized = self._validate_username(username)
+        self._validate_password(new_password)
+        with self.database.transaction() as connection:
+            row = connection.execute("SELECT id FROM users WHERE username = ?", (normalized,)).fetchone()
+            if row is None:
+                raise ValueError("Usuário não localizado")
+            user_id = int(row["id"])
+            connection.execute(
+                "UPDATE users SET password_hash = ?, must_change_password = 1, is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (PASSWORD_HASHER.hash(new_password), user_id),
+            )
+            connection.execute("UPDATE sessions SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ? AND revoked_at IS NULL", (user_id,))
+            connection.execute("DELETE FROM auth_attempts WHERE username = ? AND success = 0", (normalized,))
+        self.audit(user_id, "RESET_PASSWORD_LOCAL", "USER", str(user_id), "local-console", "SUCCESS")
+
     def login(self, username: str, password: str, source_ip: str = "127.0.0.1") -> dict[str, Any]:
         normalized = username.strip().lower()
         if self._is_locked(normalized, source_ip):
