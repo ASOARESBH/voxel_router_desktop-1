@@ -30,11 +30,21 @@
   async function api(path, options = {}) {
     const response = await fetch(path, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options });
     if (response.status === 204) return null;
+    if (response.status === 401 && !path.startsWith('/api/auth/')) return sessionExpired();
     const payload = await response.json().catch(() => ({}));
     // Erros de validação (422) chegam como lista: mostra a mensagem de cada campo.
     const detail = Array.isArray(payload.detail) ? payload.detail.map(item => String(item.msg || '').replace(/^Value error, /, '')).join('; ') : payload.detail;
     if (!response.ok) throw new Error(detail || 'Não foi possível concluir a operação.');
     return payload;
+  }
+
+  // Sessão expirada (30 min) no meio do uso: volta ao login com aviso em vez de um alerta "Não autenticado".
+  function sessionExpired() {
+    document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
+    replacePath('/');
+    renderAuthScreen(true);
+    showMessage('Sua sessão expirou. Entre novamente; o que não foi salvo precisa ser preenchido de novo.');
+    return new Promise(() => {});
   }
 
   function showMessage(text, isError = true) {
