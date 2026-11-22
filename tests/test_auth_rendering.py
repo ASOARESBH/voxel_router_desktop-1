@@ -51,3 +51,15 @@ def test_administrative_shell_routes_use_existing_session_contract(settings, dat
         assert client.post("/api/auth/logout").status_code == 204
         assert client.get("/api/auth/me").status_code == 401
         assert client.get("/api/system").status_code == 401
+
+
+def test_expired_session_returns_to_login_and_modalities_are_editable() -> None:
+    controller = (PROJECT_ROOT / "frontend" / "static" / "js" / "router.js").read_text(encoding="utf-8")
+
+    # 401 de qualquer API administrativa e a verificação periódica levam de volta ao login.
+    assert "response.status === 401 && !path.startsWith('/api/auth/')) return sessionExpired();" in controller
+    assert "state.sessionTimer = window.setInterval" in controller
+    assert "window.clearInterval(state.sessionTimer);" in controller
+    # Edição de modalidade reaproveita o PUT existente e o mesmo formulário do cadastro.
+    assert 'data-node-edit="${row.id}">EDITAR' in controller
+    assert "modalityFields(row)" in controller and "modalityFields()" in controller

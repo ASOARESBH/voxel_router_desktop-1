@@ -97,6 +97,7 @@
 
   function renderAuthScreen(provisioned) {
     state.auth = AUTH_STATES.UNAUTHENTICATED;
+    window.clearInterval(state.sessionTimer);
     state.user = null;
     $('#app-view').hidden = true;
     $('#login-view').hidden = false;
@@ -119,6 +120,12 @@
     scrollToTop();
     visiblePage('dashboard');
     window.setInterval(() => { $('#clock').textContent = new Date().toLocaleString('pt-BR'); }, 1000);
+    // Volta ao login assim que a sessão expira, mesmo sem nenhuma ação na tela.
+    window.clearInterval(state.sessionTimer);
+    state.sessionTimer = window.setInterval(async () => {
+      const response = await fetch('/api/auth/me', { credentials: 'same-origin' }).catch(() => null);
+      if (response && response.status === 401) sessionExpired();
+    }, 60000);
   }
 
   async function verifyBootstrap() {
@@ -250,17 +257,33 @@
     const [rows, access] = await Promise.all([api('/api/modalities'), api('/api/dicom/access')]);
     state.modalities = rows;
     $('#modalities-warning').hidden = access.nodes.enabled > 0;
-    $('#modalities-table').innerHTML = rows.length ? rows.map(row => `<tr><td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.ae_title)}</td><td>${escapeHtml(row.host)}</td><td>${escapeHtml(row.modality)}</td><td>${escapeHtml(row.location)}</td><td>${badge(row.enabled ? 'ONLINE' : 'PAUSED', row.enabled ? 'HABILITADA' : 'DESABILITADA')}</td><td><div class="action-group"><button class="secondary" data-node-toggle="${row.id}">${row.enabled ? 'DESABILITAR' : 'HABILITAR'}</button><button class="secondary" data-node-delete="${row.id}">EXCLUIR</button></div></td></tr>`).join('') : '<tr><td colspan="7" class="empty-cell">Nenhuma modalidade cadastrada.</td></tr>';
+    $('#modalities-table').innerHTML = rows.length ? rows.map(row => `<tr><td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.ae_title)}</td><td>${escapeHtml(row.host)}</td><td>${escapeHtml(row.modality)}</td><td>${escapeHtml(row.location)}</td><td>${badge(row.enabled ? 'ONLINE' : 'PAUSED', row.enabled ? 'HABILITADA' : 'DESABILITADA')}</td><td><div class="action-group"><button class="secondary" data-node-edit="${row.id}">EDITAR</button><button class="secondary" data-node-toggle="${row.id}">${row.enabled ? 'DESABILITAR' : 'HABILITAR'}</button><button class="secondary" data-node-delete="${row.id}">EXCLUIR</button></div></td></tr>`).join('') : '<tr><td colspan="7" class="empty-cell">Nenhuma modalidade cadastrada.</td></tr>';
     const until = access.learning_mode_until;
     $('#learning-status').textContent = until ? `LIGADO ATÉ ${formatUtc(until)}` : 'DESLIGADO';
     $('#learning-status').className = `badge ${until ? 'warning' : 'neutral'}`;
     $('#attempts-table').innerHTML = access.attempts.length ? access.attempts.map(row => `<tr><td>${escapeHtml(row.calling_ae)}</td><td>${escapeHtml(row.source_ip)}</td><td>${escapeHtml(row.called_ae)}</td><td>${escapeHtml(attemptReasons[row.reason] || row.reason)}</td><td>${row.attempt_count}</td><td>${escapeHtml(formatUtc(row.last_seen_at))}</td><td><div class="action-group"><button class="primary" data-attempt-register="${row.id}" data-ae="${escapeHtml(row.calling_ae)}" data-ip="${escapeHtml(row.source_ip)}">CADASTRAR</button><button class="secondary" data-attempt-discard="${row.id}">DESCARTAR</button></div></td></tr>`).join('') : `<tr><td colspan="7" class="empty-cell">${until ? 'Aguardando tentativas de envio. Peça para a modalidade enviar um exame de teste.' : 'Nenhuma recusa registrada.'}</td></tr>`;
   }
 
+  // Campos do cadastro/edição de modalidade; `row` preenche os valores atuais na edição.
+  function modalityFields(row = {}) {
+    const value = field => (row[field] === null || row[field] === undefined ? '' : escapeHtml(row[field]));
+    const enabled = row.id === undefined || row.enabled ? 'checked' : '';
+    return `<label>Nome<input name="name" value="${value('name')}" required></label><label>Descrição<input name="description" value="${value('description')}"></label><label>AE Title<input name="ae_title" value="${value('ae_title')}" maxlength="16" required></label><label>IP ou faixa CIDR da modalidade<input name="host" value="${value('host')}" placeholder="192.168.0.50 ou 192.168.0.0/24" required></label><label>Porta<input name="port" type="number" value="${row.port ?? 104}" min="1" max="65535" required></label><label>Modalidade<input name="modality" value="${value('modality')}" placeholder="CT"></label><label>Fabricante<input name="manufacturer" value="${value('manufacturer')}"></label><label>Localização<input name="location" value="${value('location')}"></label><label class="checkbox-label"><input name="enabled" type="checkbox" ${enabled}> Ativa (habilitada para enviar exames)</label>`;
+  }
+
   async function onModalitiesClick(event) {
     const data = event.target.dataset;
     try {
-      if (data.nodeToggle) {
+      if (data.nodeEdit) {
+        const row = state.modalities.find(item => String(item.id) === data.nodeEdit);
+        if (!row) return;
+        openModal(`Editar modalidade ${row.name}`, modalityFields(row), async values => {
+          values.port = Number(values.port);
+          await api(`/api/modalities/${row.id}`, { method: 'PUT', body: JSON.stringify(values) });
+          await loadModalities();
+        });
+        return;
+      } else if (data.nodeToggle) {
         const row = state.modalities.find(item => String(item.id) === data.nodeToggle);
         const payload = { name: row.name, description: row.description, ae_title: row.ae_title, host: row.host, port: row.port, modality: row.modality, manufacturer: row.manufacturer, location: row.location, enabled: !row.enabled };
         await api(`/api/modalities/${row.id}`, { method: 'PUT', body: JSON.stringify(payload) });
@@ -499,7 +522,7 @@
     $('#outbound-ae-form').addEventListener('submit', event => { event.preventDefault(); const value = new FormData(event.target).get('outbound_ae_title'); api('/api/settings/dicom', { method: 'PATCH', body: JSON.stringify({ values: { outbound_ae_title: value } }) }).then(() => { alert('AE de saída salvo. Destinos DICOM foram pausados se o valor mudou: teste o C-ECHO de novo.'); loadDicom(); }).catch(error => alert(error.message)); });
     $('#learning-enable').addEventListener('click', () => api('/api/dicom/learning', { method: 'POST', body: JSON.stringify({ hours: Number($('#learning-hours').value) }) }).then(loadModalities).catch(error => alert(error.message)));
     $('#learning-disable').addEventListener('click', () => api('/api/dicom/learning', { method: 'DELETE' }).then(loadModalities).catch(error => alert(error.message)));
-    $('#add-modality').addEventListener('click',() => openModal('Adicionar modalidade', '<label>Nome<input name="name" required></label><label>Descrição<input name="description"></label><label>AE Title<input name="ae_title" maxlength="16" required></label><label>IP ou faixa CIDR<input name="host" placeholder="192.168.0.50 ou 192.168.0.0/24" required></label><label>Porta<input name="port" type="number" value="104" min="1" max="65535" required></label><label>Modalidade<input name="modality" placeholder="CT"></label><label>Fabricante<input name="manufacturer"></label><label>Localização<input name="location"></label><label class="checkbox-label"><input name="enabled" type="checkbox" checked> Ativa</label>', async values => { values.port = Number(values.port); await api('/api/modalities', { method: 'POST', body: JSON.stringify(values) }); await loadModalities(); }));
+    $('#add-modality').addEventListener('click', () => openModal('Adicionar modalidade', modalityFields(), async values => { values.port = Number(values.port); await api('/api/modalities', { method: 'POST', body: JSON.stringify(values) }); await loadModalities(); }));
     $('#add-destination').addEventListener('click', () => openModal('Adicionar destino DICOM', '<label>Nome<input name="name" required></label><label>AE Title do destino<input name="ae_title" maxlength="16" required></label><label>IP / Host<input name="host" required></label><label>Porta<input name="port" type="number" value="104" min="1" max="65535" required></label><label>Prioridade<select name="priority"><option value="1">CRÍTICA</option><option value="2">ALTA</option><option value="3" selected>NORMAL</option><option value="4">BAIXA</option></select></label><label class="checkbox-label"><input name="tls_enabled" type="checkbox"> TLS habilitado</label><p class="helper">Só destinos DICOM (C-STORE) são suportados. O destino será criado PAUSADO; depois, use TESTAR C-ECHO e HABILITAR.</p>', async values => { values.kind = 'DICOM'; values.tls_enabled = values.tls_enabled === 'on'; values.port = Number(values.port); values.priority = Number(values.priority); await api('/api/destinations', { method: 'POST', body: JSON.stringify(values) }); await loadDestinations(); }));
     $('#settings-system').addEventListener('submit', event => { event.preventDefault(); const form = new FormData(event.target); api('/api/settings/system', { method: 'PATCH', body: JSON.stringify({ values: Object.fromEntries(form) }) }).then(() => alert('Configurações salvas.')).catch(error => alert(error.message)); });
     bindVpn();
