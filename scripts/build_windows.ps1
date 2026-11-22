@@ -75,11 +75,13 @@ Invoke-Checked 'Instalar dependências (constraints exatas)' { & $Py -m pip inst
 Invoke-Checked 'Registrar dependências efetivas' { & $Py -m pip freeze | Out-File -Encoding utf8 dist\build-freeze.txt }
 Invoke-Checked 'Gerar ícones e imagens' { & $Py scripts\generate_assets.py }
 
+# Serviços pywin32: win32timezone e servicemanager são importados dinamicamente pelo pywin32 e
+# o PyInstaller não os detecta (sem eles o install do serviço falha com ModuleNotFoundError).
 # O orthanc.json e o segredo interno são criados no computador de destino, em ProgramData,
 # antes de registrar/iniciar os serviços. Nunca gerar credenciais de produção no ambiente de build.
 Invoke-Checked 'PyInstaller VOXELRouter' { & $Py -m PyInstaller --noconfirm --clean --name VOXELRouter --icon frontend\static\img\router.ico --add-data "frontend;frontend" --add-data "config;config" app\main.py }
-Invoke-Checked 'PyInstaller VOXELRouterService' { & $Py -m PyInstaller --noconfirm --clean --name VOXELRouterService --icon frontend\static\img\router.ico --add-data "frontend;frontend" --add-data "config;config" app\service_main.py }
-Invoke-Checked 'PyInstaller VOXELOrthancService' { & $Py -m PyInstaller --noconfirm --clean --name VOXELOrthancService --icon frontend\static\img\router.ico --add-data "config;config" app\orthanc\service_main.py }
+Invoke-Checked 'PyInstaller VOXELRouterService' { & $Py -m PyInstaller --noconfirm --clean --name VOXELRouterService --hidden-import win32timezone --hidden-import servicemanager --icon frontend\static\img\router.ico --add-data "frontend;frontend" --add-data "config;config" app\service_main.py }
+Invoke-Checked 'PyInstaller VOXELOrthancService' { & $Py -m PyInstaller --noconfirm --clean --name VOXELOrthancService --hidden-import win32timezone --hidden-import servicemanager --icon frontend\static\img\router.ico --add-data "config;config" app\orthanc\service_main.py }
 Invoke-Checked 'PyInstaller VOXELDiagnostics' { & $Py -m PyInstaller --noconfirm --clean --name VOXELDiagnostics --icon frontend\static\img\router.ico --add-data "config;config" scripts\diagnose_install.py }
 
 if ($SkipInstaller) { Write-Host 'Instalador não gerado (-SkipInstaller).'; exit 0 }

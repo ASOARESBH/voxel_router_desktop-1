@@ -38,3 +38,12 @@ def test_install_failure_becomes_nonzero_exit_code(monkeypatch):
 def test_successful_command_returns_zero(monkeypatch):
     fake_pywin32(monkeypatch, result=None)
     assert handle_service_command_line(object, ["svc.exe", "start"]) == 0
+
+
+def test_windows_build_includes_pywin32_dynamic_imports():
+    from pathlib import Path
+
+    script = (Path(__file__).resolve().parents[1] / "scripts" / "build_windows.ps1").read_text(encoding="utf-8-sig")
+    for name in ("VOXELRouterService", "VOXELOrthancService"):
+        line = next(line for line in script.splitlines() if f"--name {name} " in line)
+        assert "--hidden-import win32timezone" in line and "--hidden-import servicemanager" in line
