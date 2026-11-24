@@ -41,6 +41,7 @@ _SYSTEM_ROOT = PureWindowsPath(os.environ.get("SystemRoot", r"C:\Windows"))
 WIREGUARD_EXE = _PROGRAM_FILES / "WireGuard" / "wireguard.exe"
 WG_EXE = _PROGRAM_FILES / "WireGuard" / "wg.exe"
 SC_EXE = _SYSTEM_ROOT / "System32" / "sc.exe"
+_SC_STATE_RE = re.compile(r":\s*([1-7])\s+(?:STOPPED|START_PENDING|STOP_PENDING|RUNNING|CONTINUE_PENDING|PAUSE_PENDING|PAUSED)\b")
 ICACLS_EXE = _SYSTEM_ROOT / "System32" / "icacls.exe"
 
 
@@ -298,12 +299,14 @@ class WireGuardManager:
         if not self._is_windows():
             return "UNSUPPORTED"
         completed = self.runner([str(SC_EXE), "query", SERVICE_NAME], None)
-        output = completed.stdout.upper()
-        if completed.returncode != 0 or "STATE" not in output:
+        # O rótulo muda com o idioma do Windows ("STATE" / "ESTADO"); o código numérico e o nome não.
+        match = _SC_STATE_RE.search(completed.stdout or "")
+        if completed.returncode != 0 or not match:
             return "NOT_INSTALLED"
-        if "RUNNING" in output:
+        code = int(match.group(1))
+        if code == 4:
             return "RUNNING"
-        if "PENDING" in output:
+        if code in (2, 3, 5, 6):
             return "STARTING"
         return "STOPPED"
 

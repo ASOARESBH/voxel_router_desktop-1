@@ -247,3 +247,21 @@ def test_linux_secret_key_file_is_used(settings, tmp_path, monkeypatch):
     store.put("teste", "valor")
     assert store.get("teste") == "valor"
     assert b"valor" not in store.path.read_bytes()
+
+
+@pytest.mark.parametrize(
+    ("stdout", "expected"),
+    [
+        ("NOME_DO_SERVIÇO: WireGuardTunnel$VOXELVPN\n        ESTADO             : 4  RUNNING\n", "RUNNING"),
+        ("SERVICE_NAME: WireGuardTunnel$VOXELVPN\n        STATE              : 1  STOPPED\n", "STOPPED"),
+        ("NOME_DO_SERVIÇO: WireGuardTunnel$VOXELVPN\n        ESTADO             : 2  START_PENDING\n", "STARTING"),
+    ],
+)
+def test_service_state_independe_do_idioma_do_windows(manager, stdout, expected):
+    manager.runner = lambda args, stdin=None: subprocess.CompletedProcess(args, 0, stdout, "")
+    assert manager._service_state() == expected
+
+
+def test_service_state_inexistente(manager):
+    manager.runner = lambda args, stdin=None: subprocess.CompletedProcess(args, 1060, "[SC] OpenService FALHA 1060:\n", "")
+    assert manager._service_state() == "NOT_INSTALLED"
